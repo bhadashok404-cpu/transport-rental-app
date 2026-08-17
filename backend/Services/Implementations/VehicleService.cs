@@ -16,11 +16,13 @@ public class VehicleService : IVehicleService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<ServiceResult<PagedResult<VehicleDto>>> GetPagedVehiclesAsync(PaginationParams pagination, string? searchTerm = null)
+    public async Task<ServiceResult<PagedResult<VehicleDto>>> GetPagedVehiclesAsync(PaginationParams pagination,
+        string? searchTerm = null, int? categoryId = null, string? vehicleType = null,
+        decimal? minPrice = null, decimal? maxPrice = null, bool? isAvailable = null)
     {
-        var pagedVehicles = await _unitOfWork.Vehicles.GetPagedAsync(pagination, searchTerm);
+        var pagedVehicles = await _unitOfWork.Vehicles.GetPagedAsync(pagination, searchTerm,
+            categoryId, vehicleType, minPrice, maxPrice, isAvailable);
         var dtos = pagedVehicles.Items.Select(v => v.ToDto()).ToList();
-
         var result = PagedResult<VehicleDto>.Create(dtos, pagedVehicles.TotalCount, pagedVehicles.Page, pagedVehicles.PageSize);
         return ServiceResult<PagedResult<VehicleDto>>.Success(result);
     }

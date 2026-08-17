@@ -19,11 +19,17 @@ public class VehiclesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<VehicleDto>>>> GetVehicles(
         [FromQuery] PaginationParams pagination,
-        [FromQuery] string? searchTerm = null)
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] int? categoryId = null,
+        [FromQuery] string? vehicleType = null,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
+        [FromQuery] bool? isAvailable = null)
     {
-        var result = await _vehicleService.GetPagedVehiclesAsync(pagination, searchTerm);
-        
-        return result.IsSuccess 
+        var result = await _vehicleService.GetPagedVehiclesAsync(pagination, searchTerm,
+            categoryId, vehicleType, minPrice, maxPrice, isAvailable);
+
+        return result.IsSuccess
             ? Ok(ApiResponse<PagedResult<VehicleDto>>.SuccessResponse(result.Data!, result.Message))
             : BadRequest(ApiResponse<PagedResult<VehicleDto>>.ErrorResponse(result.Message, result.Errors));
     }

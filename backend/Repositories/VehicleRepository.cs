@@ -1,5 +1,6 @@
 using backend.Common;
 using backend.Data;
+using backend.Enums;
 using backend.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,11 +12,14 @@ public class VehicleRepository : Repository<Vehicle>, IVehicleRepository
     {
     }
 
-    public async Task<PagedResult<Vehicle>> GetPagedAsync(PaginationParams pagination, string? searchTerm = null)
+    public async Task<PagedResult<Vehicle>> GetPagedAsync(PaginationParams pagination, string? searchTerm = null,
+        int? categoryId = null, string? vehicleType = null, decimal? minPrice = null,
+        decimal? maxPrice = null, bool? isAvailable = null)
     {
         var query = _dbSet
             .Include(v => v.VehicleCategory)
             .Include(v => v.CurrentDriver)
+            .Where(v => v.IsActive)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -23,13 +27,30 @@ public class VehicleRepository : Repository<Vehicle>, IVehicleRepository
             query = query.Where(v =>
                 v.RegistrationNumber.Contains(searchTerm) ||
                 v.Make.Contains(searchTerm) ||
-                v.Model.Contains(searchTerm));
+                v.Model.Contains(searchTerm) ||
+                v.FuelType.Contains(searchTerm));
         }
+
+        if (categoryId.HasValue)
+            query = query.Where(v => v.VehicleCategoryId == categoryId.Value);
+
+        if (!string.IsNullOrWhiteSpace(vehicleType) &&
+            Enum.TryParse<VehicleType>(vehicleType, true, out var parsedType))
+            query = query.Where(v => v.VehicleType == parsedType);
+
+        if (minPrice.HasValue)
+            query = query.Where(v => v.PricePerDay >= minPrice.Value);
+
+        if (maxPrice.HasValue)
+            query = query.Where(v => v.PricePerDay <= maxPrice.Value);
+
+        if (isAvailable.HasValue)
+            query = query.Where(v => v.IsAvailable == isAvailable.Value);
 
         var totalCount = await query.CountAsync();
 
         var items = await query
-            .OrderBy(v => v.Id)
+            .OrderBy(v => v.PricePerDay)
             .Skip(pagination.Skip)
             .Take(pagination.PageSize)
             .ToListAsync();

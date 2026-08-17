@@ -5,7 +5,9 @@ namespace backend.Services.Interfaces;
 
 public interface IVehicleService
 {
-    Task<ServiceResult<PagedResult<VehicleDto>>> GetPagedVehiclesAsync(PaginationParams pagination, string? searchTerm = null);
+    Task<ServiceResult<PagedResult<VehicleDto>>> GetPagedVehiclesAsync(PaginationParams pagination,
+        string? searchTerm = null, int? categoryId = null, string? vehicleType = null,
+        decimal? minPrice = null, decimal? maxPrice = null, bool? isAvailable = null);
     Task<ServiceResult<VehicleDto>> GetVehicleByIdAsync(int id);
     Task<ServiceResult<IEnumerable<VehicleDto>>> GetAvailableVehiclesAsync();
     Task<ServiceResult<IEnumerable<VehicleDto>>> GetVehiclesByCategoryAsync(int categoryId);

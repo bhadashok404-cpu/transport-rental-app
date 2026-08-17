@@ -14,8 +14,13 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddRepositories();
 builder.Services.AddBusinessServices();
 
-// Add Controllers
-builder.Services.AddControllers();
+// Add Controllers — serialize enums as strings globally
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 // CORS - allow React frontend
 builder.Services.AddCors(options =>

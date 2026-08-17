@@ -3,9 +3,11 @@ namespace backend.Common;
 public class PaginationParams
 {
     private const int MaxPageSize = 100;
-    private int _pageSize = 10;
+    private int _pageSize = 12;
 
+    // Accept both "page" and "pageNumber" from query string
     public int Page { get; set; } = 1;
+    public int PageNumber { get => Page; set => Page = value; }
 
     public int PageSize
     {
