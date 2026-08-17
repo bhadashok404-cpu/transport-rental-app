@@ -1,5 +1,6 @@
-using backend.Services;
 using backend.Data;
+using backend.Extensions;
+using backend.Middleware;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +9,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add Repositories and Services
+builder.Services.AddRepositories();
+builder.Services.AddBusinessServices();
+
+// Add Controllers — serialize enums as strings globally
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 // CORS - allow React frontend
 builder.Services.AddCors(options =>
@@ -26,6 +39,10 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+// Middleware Pipeline
+app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
 // CORS
 app.UseCors("Frontend");
 
@@ -42,12 +59,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// HTTPS redirection disabled for local HTTP development
-// app.UseHttpsRedirection();
-
-// API endpoints
-app.MapVehicleEndpoints();
-app.MapCustomerEndpoints();
-app.MapBookingEndpoints();
+// Map Controllers
+app.MapControllers();
 
 app.Run();

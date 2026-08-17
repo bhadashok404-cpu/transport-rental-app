@@ -1,10 +1,69 @@
-html,
-body,
-#root {
-    margin: 0;
-    min-height: 100%;
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-200: #bae6fd;
+  --color-primary-300: #7dd3fc;
+  --color-primary-400: #38bdf8;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-700: #0369a1;
+  --color-primary-800: #075985;
+  --color-primary-900: #0c4a6e;
+  --color-primary-950: #082f49;
+
+  --color-accent-50: #fdf4ff;
+  --color-accent-100: #fae8ff;
+  --color-accent-200: #f5d0fe;
+  --color-accent-300: #f0abfc;
+  --color-accent-400: #e879f9;
+  --color-accent-500: #d946ef;
+  --color-accent-600: #c026d3;
+  --color-accent-700: #a21caf;
+  --color-accent-800: #86198f;
+  --color-accent-900: #701a75;
+
+  --animate-fade-in: fadeIn 0.5s ease-in-out;
+  --animate-slide-up: slideUp 0.5s ease-out;
+  --animate-slide-down: slideDown 0.5s ease-out;
 }
 
-body {
-    min-height: 100vh;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  html { scroll-behavior: smooth; }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar       { width: 8px; height: 8px; }
+  .custom-scrollbar::-webkit-scrollbar-track { @apply bg-gray-100 rounded; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded hover:bg-gray-400; }
+
+  .card-hover   { @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1; }
+  .text-shadow  { text-shadow: 0 2px 4px rgba(0,0,0,.1); }
+  .text-shadow-lg { text-shadow: 0 4px 8px rgba(0,0,0,.2); }
+
+  .input-field {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg
+           focus:ring-2 focus:ring-primary-500 focus:border-transparent
+           transition-all duration-200 outline-none;
+  }
 }
