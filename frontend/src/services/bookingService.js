@@ -17,10 +17,10 @@ const bookingService = {
   update: (id, bookingData) => api.put(`/bookings/${id}`, bookingData),
 
   // Cancel booking
-  cancel: (id, reason) => api.post(`/bookings/${id}/cancel`, { reason }),
+  cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { cancellationReason: reason }),
 
   // Assign driver to booking
-  assignDriver: (id, driverId) => api.post(`/bookings/${id}/assign-driver`, { driverId }),
+  assignDriver: (id, driverId) => api.patch(`/bookings/${id}/assign-driver`, { driverId }),
 
   // Get customer bookings
   getByCustomer: (customerId, params = {}) => {
@@ -34,6 +34,10 @@ const bookingService = {
     return api.get(`/bookings/driver/${driverId}?${queryParams.toString()}`);
   },
 
+  getDriverRequests: (driverId) => api.get(`/bookings/driver/${driverId}/requests`),
+  getAllRideRequests: () => api.get('/bookings/ride-requests'),
+  respondToRequest: (requestId, driverId, accept) => api.patch(`/bookings/requests/${requestId}/respond?driverId=${driverId}&accept=${accept}`),
+
   // Get bookings by status
   getByStatus: (status, params = {}) => {
     const queryParams = new URLSearchParams(params);
@@ -41,10 +45,10 @@ const bookingService = {
   },
 
   // Complete booking
-  complete: (id) => api.post(`/bookings/${id}/complete`),
+  complete: (id, actualDistance) => api.patch(`/bookings/${id}/complete-trip?actualDistance=${actualDistance}`),
 
   // Start trip
-  startTrip: (id) => api.post(`/bookings/${id}/start`),
+  startTrip: (id) => api.patch(`/bookings/${id}/start-trip`),
 };
 
 export default bookingService;

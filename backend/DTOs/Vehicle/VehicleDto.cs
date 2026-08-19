@@ -5,7 +5,6 @@ namespace backend.DTOs.Vehicle;
 public class VehicleDto
 {
     public int Id { get; set; }
-    public string RegistrationNumber { get; set; } = string.Empty;
     public string Make { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
     public int Year { get; set; }
@@ -16,7 +15,6 @@ public class VehicleDto
     public decimal PricePerKm { get; set; }
     public int SeatingCapacity { get; set; }
     public string FuelType { get; set; } = string.Empty;
-    public string ImageUrl { get; set; } = string.Empty;
     public bool IsAvailable { get; set; }
     public bool IsActive { get; set; }
     public int? CurrentDriverId { get; set; }

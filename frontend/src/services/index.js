@@ -1,5 +1,6 @@
 // Export all services from a single entry point
 export { default as vehicleService } from './vehicleService';
+export { default as authService } from './authService';
 export { default as vehicleCategoryService } from './vehicleCategoryService';
 export { default as bookingService } from './bookingService';
 export { default as customerService } from './customerService';

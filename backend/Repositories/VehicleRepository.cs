@@ -8,6 +8,9 @@ namespace backend.Repositories;
 
 public class VehicleRepository : Repository<Vehicle>, IVehicleRepository
 {
+    private static readonly VehicleType[] CarTypes =
+        [VehicleType.MiniCab, VehicleType.Sedan, VehicleType.SUV, VehicleType.Van];
+
     public VehicleRepository(AppDbContext context) : base(context)
     {
     }
@@ -19,7 +22,7 @@ public class VehicleRepository : Repository<Vehicle>, IVehicleRepository
         var query = _dbSet
             .Include(v => v.VehicleCategory)
             .Include(v => v.CurrentDriver)
-            .Where(v => v.IsActive)
+            .Where(v => v.IsActive && CarTypes.Contains(v.VehicleType))
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -62,7 +65,7 @@ public class VehicleRepository : Repository<Vehicle>, IVehicleRepository
     {
         return await _dbSet
             .Include(v => v.VehicleCategory)
-            .Where(v => v.IsAvailable && v.IsActive)
+            .Where(v => v.IsAvailable && v.IsActive && CarTypes.Contains(v.VehicleType))
             .ToListAsync();
     }
 
@@ -70,7 +73,7 @@ public class VehicleRepository : Repository<Vehicle>, IVehicleRepository
     {
         return await _dbSet
             .Include(v => v.VehicleCategory)
-            .Where(v => v.VehicleCategoryId == categoryId && v.IsActive)
+            .Where(v => v.VehicleCategoryId == categoryId && v.IsActive && CarTypes.Contains(v.VehicleType))
             .ToListAsync();
     }
 
@@ -79,6 +82,9 @@ public class VehicleRepository : Repository<Vehicle>, IVehicleRepository
         return await _dbSet
             .Include(v => v.VehicleCategory)
             .Include(v => v.CurrentDriver)
-            .FirstOrDefaultAsync(v => v.Id == id);
+            .FirstOrDefaultAsync(v => v.Id == id && CarTypes.Contains(v.VehicleType));
     }
+
+    private static bool IsCar(VehicleType vehicleType) =>
+        vehicleType is VehicleType.MiniCab or VehicleType.Sedan or VehicleType.SUV or VehicleType.Van;
 }

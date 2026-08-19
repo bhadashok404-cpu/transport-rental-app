@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Phone, MapPin, Car, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Phone, MapPin, Car, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import toast from 'react-hot-toast';
 
 export default function Register() {
   const navigate = useNavigate();
   const { register } = useApp();
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phoneNumber: '', address: '', password: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phoneNumber: '', address: '', password: '', role: 'Customer', licenseNumber: '', licenseExpiryDate: '' });
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -15,15 +15,25 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { firstName, lastName, email, phoneNumber, address, password } = form;
-    if (!firstName || !lastName || !email || !phoneNumber || !address || !password) {
+    const { firstName, lastName, email, phoneNumber, address, password, role, licenseNumber, licenseExpiryDate } = form;
+    if (!firstName || !lastName || !email || !phoneNumber || !address || !password || (role === 'Driver' && (!licenseNumber || !licenseExpiryDate))) {
       toast.error('Please fill all fields'); return;
     }
     setLoading(true);
     try {
-      await register({ firstName, lastName, email, phoneNumber, address });
+      const session = await register({
+        firstName,
+        lastName,
+        email,
+        phoneNumber,
+        address,
+        password,
+        role,
+        licenseNumber: role === 'Driver' ? licenseNumber : null,
+        licenseExpiryDate: role === 'Driver' ? licenseExpiryDate : null,
+      });
       toast.success('Account created! Welcome aboard 🎉');
-      navigate('/dashboard');
+      navigate(session.role === 'Driver' ? '/driver' : '/dashboard');
     } catch (err) {
       toast.error(err?.title || err?.message || 'Registration failed. Email may already exist.');
     } finally {
@@ -40,11 +50,11 @@ export default function Register() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center px-4 py-20">
+    <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center px-4 py-20">
       <div className="w-full max-w-lg">
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-primary-600 to-primary-800 px-8 py-10 text-center">
+          <div className="bg-linear-to-r from-primary-600 to-primary-800 px-8 py-10 text-center">
             <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Car className="w-8 h-8 text-white" />
             </div>
@@ -67,6 +77,17 @@ export default function Register() {
                 ))}
               </div>
 
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Register As</label>
+                <div className="relative">
+                  <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <select value={form.role} onChange={set('role')} className="w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none transition">
+                    <option value="Customer">Customer</option>
+                    <option value="Driver">Driver</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="space-y-4 mb-5">
                 {fields.filter(f => !f.half).map(({ key, label, type, placeholder, icon: Icon }) => (
                   <div key={key}>
@@ -78,6 +99,17 @@ export default function Register() {
                     </div>
                   </div>
                 ))}
+
+                {form.role === 'Driver' && <>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">License Number</label>
+                    <input value={form.licenseNumber} onChange={set('licenseNumber')} placeholder="Enter driving license number" className="w-full px-4 py-3.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">License Expiry Date</label>
+                    <input type="date" value={form.licenseExpiryDate} onChange={set('licenseExpiryDate')} className="w-full px-4 py-3.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" />
+                  </div>
+                </>}
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>

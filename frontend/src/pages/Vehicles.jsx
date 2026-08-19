@@ -3,9 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, Car, Fuel, Users } from 'lucide-react';
 import { vehicleService, vehicleCategoryService } from '../services';
 import { Loader, Pagination, EmptyState, Badge } from '../components';
-import { getVehiclePrimaryImage } from '../utils/carImages';
 
-const VEHICLE_TYPES = ['Bike', 'Auto', 'MiniCab', 'Sedan', 'SUV', 'Tempo', 'Truck', 'Bus', 'Van'];
+const VEHICLE_TYPES = ['MiniCab', 'Sedan', 'SUV', 'Van'];
 
 export default function Vehicles() {
   const navigate = useNavigate();
@@ -207,28 +206,11 @@ export default function Vehicles() {
 }
 
 function VehicleCard({ vehicle, onClick }) {
-  const [imgSrc, setImgSrc] = useState(() => getVehiclePrimaryImage(vehicle));
-  const [imgLoaded, setImgLoaded] = useState(false);
-
   return (
     <div onClick={onClick} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer group hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-      <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-        {!imgLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Car className="w-16 h-16 text-gray-300 animate-pulse" />
-          </div>
-        )}
-        <img
-          src={imgSrc}
-          alt={`${vehicle.make} ${vehicle.model}`}
-          onLoad={() => setImgLoaded(true)}
-          onError={() => {
-            setImgSrc(`https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&q=85&fit=crop`);
-            setImgLoaded(true);
-          }}
-          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+      <div className="relative h-48 bg-gray-100 flex flex-col items-center justify-center text-gray-400">
+        <Car className="w-16 h-16 mb-2" />
+        <span className="text-xs font-medium">Vehicle photos coming soon</span>
         <div className="absolute top-3 left-3">
           <Badge status={vehicle.isAvailable ? 'Available' : 'Busy'} />
         </div>
@@ -242,7 +224,7 @@ function VehicleCard({ vehicle, onClick }) {
         <h3 className="font-bold text-gray-900 text-lg group-hover:text-primary-700 transition leading-tight">
           {vehicle.make} {vehicle.model}
         </h3>
-        <p className="text-gray-400 text-sm mb-3">{vehicle.year} · {vehicle.registrationNumber}</p>
+        <p className="text-gray-400 text-sm mb-3">{vehicle.year} · Registration shared after confirmation</p>
         <div className="flex items-center gap-4 text-xs text-gray-500 mb-4">
           <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{vehicle.seatingCapacity} seats</span>
           <span className="flex items-center gap-1"><Fuel className="w-3.5 h-3.5" />{vehicle.fuelType}</span>

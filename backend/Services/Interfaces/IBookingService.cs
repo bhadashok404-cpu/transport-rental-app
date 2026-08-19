@@ -19,4 +19,7 @@ public interface IBookingService
     Task<ServiceResult<BookingDto>> CompleteTripAsync(int id, decimal actualDistance);
     Task<ServiceResult<IEnumerable<BookingDto>>> GetPendingBookingsAsync();
     Task<ServiceResult<IEnumerable<BookingDto>>> GetActiveBookingsAsync();
+    Task<ServiceResult<IEnumerable<RideRequestDto>>> GetDriverRideRequestsAsync(int driverId);
+    Task<ServiceResult<IEnumerable<RideRequestDto>>> GetAllRideRequestsAsync();
+    Task<ServiceResult<RideRequestDto>> RespondToRideRequestAsync(int requestId, int driverId, bool accept);
 }

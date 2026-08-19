@@ -126,8 +126,7 @@ function CreateBooking() {
                 key={vehicle.id}
                 value={vehicle.id}
               >
-                {vehicle.make} {vehicle.model} -{" "}
-                {vehicle.registrationNumber}
+                {vehicle.make} {vehicle.model} - {vehicle.vehicleType}
               </option>
             ))}
           </select>

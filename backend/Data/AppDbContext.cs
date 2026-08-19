@@ -22,6 +22,8 @@ public class AppDbContext : DbContext
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<backend.Models.Route> Routes => Set<backend.Models.Route>();
+    public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+        public DbSet<RideRequest> RideRequests => Set<RideRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,8 +37,36 @@ public class AppDbContext : DbContext
         ConfigureCoupon(modelBuilder);
         ConfigureNotification(modelBuilder);
         ConfigureRoute(modelBuilder);
+        ConfigureUserAccount(modelBuilder);
+        ConfigureRideRequest(modelBuilder);
         
         SeedData(modelBuilder);
+    }
+
+    private static void ConfigureUserAccount(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<UserAccount>(entity =>
+        {
+            entity.HasKey(u => u.Id);
+            entity.Property(u => u.Email).IsRequired().HasMaxLength(255);
+            entity.Property(u => u.PasswordHash).IsRequired().HasMaxLength(500);
+            entity.Property(u => u.Role).HasConversion<string>();
+            entity.HasIndex(u => u.Email).IsUnique();
+            entity.HasOne(u => u.Customer).WithMany().HasForeignKey(u => u.CustomerId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(u => u.Driver).WithMany().HasForeignKey(u => u.DriverId).OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureRideRequest(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<RideRequest>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Status).HasConversion<string>();
+            entity.HasIndex(r => new { r.BookingId, r.DriverId }).IsUnique();
+            entity.HasOne(r => r.Booking).WithMany().HasForeignKey(r => r.BookingId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(r => r.Driver).WithMany().HasForeignKey(r => r.DriverId).OnDelete(DeleteBehavior.Restrict);
+        });
     }
 
     private static void ConfigureVehicleCategory(ModelBuilder modelBuilder)
@@ -477,20 +507,6 @@ public class AppDbContext : DbContext
             new Vehicle { Id = 13, RegistrationNumber = "GJ05IJ7890", Make = "Tata",            Model = "Ace",           Year = 2021, VehicleType = VehicleType.Truck,   VehicleCategoryId = 5, PricePerDay = 600, PricePerKm = 25, SeatingCapacity = 3, FuelType = "Diesel", ImageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Tata_Ace_Gold_%28front%29.jpg/320px-Tata_Ace_Gold_%28front%29.jpg", IsAvailable = true, IsActive = true, CreatedAt = seedDate },
             new Vehicle { Id = 14, RegistrationNumber = "MH04TU6789", Make = "Mahindra",        Model = "Bolero Pickup", Year = 2022, VehicleType = VehicleType.Truck,   VehicleCategoryId = 5, PricePerDay = 650, PricePerKm = 26, SeatingCapacity = 3, FuelType = "Diesel", ImageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Mahindra_Bolero_Pik-Up_Extra-Long_flatbed_%28front%29.jpg/320px-Mahindra_Bolero_Pik-Up_Extra-Long_flatbed_%28front%29.jpg", IsAvailable = true, IsActive = true, CreatedAt = seedDate },
             new Vehicle { Id = 15, RegistrationNumber = "KA02VW7890", Make = "Ashok Leyland",   Model = "Dost",          Year = 2021, VehicleType = VehicleType.Truck,   VehicleCategoryId = 5, PricePerDay = 700, PricePerKm = 28, SeatingCapacity = 3, FuelType = "Diesel", ImageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Ashok_Leyland_Dost%2B_CNG_%28front%29.jpg/320px-Ashok_Leyland_Dost%2B_CNG_%28front%29.jpg", IsAvailable = true, IsActive = true, CreatedAt = seedDate }
-        );
-
-        // Seed Sample Customers
-        modelBuilder.Entity<Customer>().HasData(
-            new Customer { Id = 1, FirstName = "Rahul", LastName = "Sharma", Email = "rahul.sharma@example.com", PhoneNumber = "+919876543210", Address = "123 MG Road, Bangalore", IsVerified = true, IsActive = true, CreatedAt = seedDate },
-            new Customer { Id = 2, FirstName = "Priya", LastName = "Patel", Email = "priya.patel@example.com", PhoneNumber = "+919876543211", Address = "456 FC Road, Pune", IsVerified = true, IsActive = true, CreatedAt = seedDate },
-            new Customer { Id = 3, FirstName = "Amit", LastName = "Kumar", Email = "amit.kumar@example.com", PhoneNumber = "+919876543212", Address = "789 CP, Delhi", IsVerified = false, IsActive = true, CreatedAt = seedDate }
-        );
-
-        // Seed Sample Drivers
-        modelBuilder.Entity<Driver>().HasData(
-            new Driver { Id = 1, FirstName = "Suresh", LastName = "Singh", Email = "suresh.singh@example.com", PhoneNumber = "+919876543220", LicenseNumber = "DL123456789", LicenseExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, DateTimeKind.Utc), Address = "Driver Colony, Bangalore", Rating = 4.5m, TotalTrips = 150, Status = DriverStatus.Available, IsVerified = true, IsActive = true, CreatedAt = seedDate },
-            new Driver { Id = 2, FirstName = "Ramesh", LastName = "Yadav", Email = "ramesh.yadav@example.com", PhoneNumber = "+919876543221", LicenseNumber = "DL987654321", LicenseExpiryDate = new DateTime(2027, 12, 31, 0, 0, 0, DateTimeKind.Utc), Address = "Transport Nagar, Pune", Rating = 4.2m, TotalTrips = 98, Status = DriverStatus.Available, IsVerified = true, IsActive = true, CreatedAt = seedDate },
-            new Driver { Id = 3, FirstName = "Vijay", LastName = "Gupta", Email = "vijay.gupta@example.com", PhoneNumber = "+919876543222", LicenseNumber = "DL456789123", LicenseExpiryDate = new DateTime(2025, 12, 31, 0, 0, 0, DateTimeKind.Utc), Address = "Lajpat Nagar, Delhi", Rating = 4.8m, TotalTrips = 220, Status = DriverStatus.Available, IsVerified = true, IsActive = true, CreatedAt = seedDate }
         );
 
         // Seed Sample Coupons

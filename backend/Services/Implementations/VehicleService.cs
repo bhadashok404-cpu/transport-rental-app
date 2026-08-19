@@ -1,5 +1,6 @@
 using backend.Common;
 using backend.DTOs.Vehicle;
+using backend.Enums;
 using backend.Models;
 using backend.Repositories;
 using backend.Services.Interfaces;
@@ -52,6 +53,9 @@ public class VehicleService : IVehicleService
 
     public async Task<ServiceResult<VehicleDto>> CreateVehicleAsync(CreateVehicleRequest request)
     {
+        if (!IsCar(request.VehicleType))
+            return ServiceResult<VehicleDto>.Failure("Only four-wheeler cars are supported");
+
         var category = await _unitOfWork.VehicleCategories.GetByIdAsync(request.VehicleCategoryId);
         if (category == null)
             return ServiceResult<VehicleDto>.Failure("Vehicle category not found");
@@ -83,6 +87,9 @@ public class VehicleService : IVehicleService
 
     public async Task<ServiceResult<VehicleDto>> UpdateVehicleAsync(int id, UpdateVehicleRequest request)
     {
+        if (!IsCar(request.VehicleType))
+            return ServiceResult<VehicleDto>.Failure("Only four-wheeler cars are supported");
+
         var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(id);
         if (vehicle == null)
             return ServiceResult<VehicleDto>.Failure("Vehicle not found");
@@ -139,4 +146,7 @@ public class VehicleService : IVehicleService
 
         return ServiceResult.Success($"Vehicle availability toggled to {vehicle.IsAvailable}");
     }
+
+    private static bool IsCar(VehicleType vehicleType) =>
+        vehicleType is VehicleType.MiniCab or VehicleType.Sedan or VehicleType.SUV or VehicleType.Van;
 }

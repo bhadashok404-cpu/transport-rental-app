@@ -37,7 +37,8 @@ export default function BookingSuccess() {
             <div className="bg-gray-50 rounded-2xl p-5 text-left space-y-3 mb-8 text-sm">
               <div className="flex items-center gap-3">
                 <Car className="w-4 h-4 text-primary-500 shrink-0" />
-                <span className="text-gray-700"><strong>{booking.vehicle?.make} {booking.vehicle?.model}</strong> — {booking.vehicle?.vehicleType}</span>
+                <span className="text-gray-700"><strong>{booking.vehicleInfo || `${booking.vehicle?.make || ''} ${booking.vehicle?.model || ''}`}</strong>{(booking.vehicleType || booking.vehicle?.vehicleType) && ` — ${booking.vehicleType || booking.vehicle.vehicleType}`}
+                  {booking.vehicleRegistration && ` · ${booking.vehicleRegistration}`}</span>
               </div>
               <div className="flex items-center gap-3">
                 <MapPin className="w-4 h-4 text-green-500 shrink-0" />

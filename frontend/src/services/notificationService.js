@@ -23,10 +23,10 @@ const notificationService = {
   getUnread: (customerId) => api.get(`/notifications/customer/${customerId}/unread`),
 
   // Mark notification as read
-  markAsRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAsRead: (id) => api.patch(`/notifications/${id}/mark-read`),
 
   // Mark all as read for customer
-  markAllAsRead: (customerId) => api.post(`/notifications/customer/${customerId}/mark-all-read`),
+  markAllAsRead: (customerId) => api.patch(`/notifications/customer/${customerId}/mark-all-read`),
 
   // Delete notification
   delete: (id) => api.delete(`/notifications/${id}`),
