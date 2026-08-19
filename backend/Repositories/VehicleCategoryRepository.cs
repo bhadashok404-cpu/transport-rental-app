@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.Enums;
 using backend.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,7 +14,9 @@ public class VehicleCategoryRepository : Repository<VehicleCategory>, IVehicleCa
     public async Task<IEnumerable<VehicleCategory>> GetActiveCategoriesAsync()
     {
         return await _dbSet
-            .Where(vc => vc.IsActive)
+            .Where(vc => vc.IsActive && vc.Vehicles.Any(v =>
+                v.IsActive && (v.VehicleType == VehicleType.MiniCab || v.VehicleType == VehicleType.Sedan ||
+                    v.VehicleType == VehicleType.SUV || v.VehicleType == VehicleType.Van)))
             .OrderBy(vc => vc.DisplayOrder)
             .ToListAsync();
     }

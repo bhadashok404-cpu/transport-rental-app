@@ -5,6 +5,7 @@ using backend.Models;
 using backend.Repositories;
 using backend.Services.Interfaces;
 using backend.Services.Mappers;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services.Implementations;
 
@@ -12,11 +13,13 @@ public class PaymentService : IPaymentService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly Data.AppDbContext _db;
 
-    public PaymentService(IUnitOfWork unitOfWork, INotificationService notificationService)
+    public PaymentService(IUnitOfWork unitOfWork, INotificationService notificationService, Data.AppDbContext db)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _db = db;
     }
 
     public async Task<ServiceResult<PagedResult<PaymentDto>>> GetPagedPaymentsAsync(PaginationParams pagination, PaymentStatus? status = null)
@@ -83,6 +86,9 @@ public class PaymentService : IPaymentService
         if (payment.Status != PaymentStatus.Pending)
             return ServiceResult<PaymentDto>.Failure("Payment has already been processed");
 
+        if (payment.Amount < payment.Booking.EstimatedPrice * 0.8m)
+            return ServiceResult<PaymentDto>.Failure("At least 80% of the booking amount is required before driver acceptance");
+
         payment.TransactionId = request.TransactionId;
         payment.PaymentGatewayResponse = request.PaymentGatewayResponse;
         payment.Status = PaymentStatus.Completed;
@@ -90,6 +96,29 @@ public class PaymentService : IPaymentService
         payment.UpdatedAt = DateTime.UtcNow;
 
         _unitOfWork.Payments.Update(payment);
+
+        var booking = payment.Booking;
+        if (booking != null && booking.Status == BookingStatus.Pending)
+        {
+            booking.Status = BookingStatus.Confirmed;
+            booking.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.Bookings.Update(booking);
+
+            var existingDriverIds = await _db.RideRequests
+                .Where(request => request.BookingId == booking.Id)
+                .Select(request => request.DriverId)
+                .ToListAsync();
+            var availableDriverIds = await _db.Drivers
+                .Where(driver => driver.IsActive && !existingDriverIds.Contains(driver.Id))
+                .Select(driver => driver.Id)
+                .ToListAsync();
+            _db.RideRequests.AddRange(availableDriverIds.Select(driverId => new RideRequest
+            {
+                BookingId = booking.Id,
+                DriverId = driverId
+            }));
+        }
+
         await _unitOfWork.SaveChangesAsync();
 
         // Send notification
@@ -101,6 +130,18 @@ public class PaymentService : IPaymentService
             Message = $"Payment of ₹{payment.Amount:F2} has been processed successfully.",
             BookingId = payment.BookingId
         });
+
+        if (booking != null)
+        {
+            await _notificationService.CreateNotificationAsync(new DTOs.Notification.CreateNotificationRequest
+            {
+                CustomerId = booking.CustomerId,
+                Type = NotificationType.BookingConfirmed,
+                Title = "Booking Confirmed",
+                Message = $"Your booking #{booking.Id} has been confirmed.",
+                BookingId = booking.Id
+            });
+        }
 
         return ServiceResult<PaymentDto>.Success(payment.ToDto(), "Payment processed successfully");
     }

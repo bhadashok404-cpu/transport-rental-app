@@ -11,6 +11,7 @@ public class BookingDto
     public string CustomerPhone { get; set; } = string.Empty;
     public int VehicleId { get; set; }
     public string VehicleInfo { get; set; } = string.Empty;
+    public VehicleType VehicleType { get; set; }
     public string VehicleRegistration { get; set; } = string.Empty;
     public int? DriverId { get; set; }
     public string? DriverName { get; set; }
@@ -22,6 +23,7 @@ public class BookingDto
     public DateTime? ActualPickupTime { get; set; }
     public DateTime? ActualDropTime { get; set; }
     public decimal EstimatedPrice { get; set; }
+    public PaymentStatus PaymentStatus { get; set; }
     public decimal? ActualPrice { get; set; }
     public decimal? DiscountAmount { get; set; }
     public string? CouponCode { get; set; }

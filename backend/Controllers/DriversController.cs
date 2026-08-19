@@ -3,6 +3,7 @@ using backend.DTOs.Driver;
 using backend.Enums;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Controllers;
 
@@ -18,6 +19,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<PagedResult<DriverDto>>>> GetDrivers(
         [FromQuery] PaginationParams pagination,
         [FromQuery] string? searchTerm = null)
@@ -28,6 +30,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [Authorize(Roles = "Admin,Driver")]
     public async Task<ActionResult<ApiResponse<DriverDto>>> GetDriver(int id)
     {
         var result = await _driverService.GetDriverByIdAsync(id);
@@ -38,6 +41,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpGet("available")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<IEnumerable<DriverDto>>>> GetAvailableDrivers()
     {
         var result = await _driverService.GetAvailableDriversAsync();
@@ -46,6 +50,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<DriverDto>>> CreateDriver([FromBody] CreateDriverRequest request)
     {
         var result = await _driverService.CreateDriverAsync(request);
@@ -57,6 +62,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin,Driver")]
     public async Task<ActionResult<ApiResponse<DriverDto>>> UpdateDriver(int id, [FromBody] UpdateDriverRequest request)
     {
         var result = await _driverService.UpdateDriverAsync(id, request);
@@ -67,6 +73,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> DeleteDriver(int id)
     {
         var result = await _driverService.DeleteDriverAsync(id);
@@ -77,6 +84,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpPatch("{id:int}/status")]
+    [Authorize(Roles = "Admin,Driver")]
     public async Task<ActionResult<ApiResponse<object>>> UpdateDriverStatus(int id, [FromQuery] DriverStatus status)
     {
         var result = await _driverService.UpdateDriverStatusAsync(id, status);
@@ -87,6 +95,7 @@ public class DriversController : ControllerBase
     }
 
     [HttpPatch("{id:int}/verify")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> VerifyDriver(int id)
     {
         var result = await _driverService.VerifyDriverAsync(id);

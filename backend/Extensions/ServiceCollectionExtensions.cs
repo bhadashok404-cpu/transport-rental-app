@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IVehicleCategoryService, VehicleCategoryService>();
         services.AddScoped<ICouponService, CouponService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IAuthService, AuthService>();
         
         return services;
     }

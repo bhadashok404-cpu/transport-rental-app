@@ -11,6 +11,15 @@ import { Loader, Badge, StarRating } from '../components';
 import { getVehicleImages } from '../utils/carImages';
 import toast from 'react-hot-toast';
 
+function NoVehicleImage() {
+  return (
+    <div className="h-80 rounded-2xl bg-gray-100 shadow-sm flex flex-col items-center justify-center text-gray-400">
+      <Car className="w-24 h-24 mb-3" />
+      <p className="text-sm font-medium">Vehicle photos coming soon</p>
+    </div>
+  );
+}
+
 // ── Image Gallery ─────────────────────────────────────────────────────────────
 function ImageGallery({ vehicle }) {
   const images = getVehicleImages(vehicle);
@@ -236,14 +245,14 @@ export default function VehicleDetail() {
         <div className="lg:col-span-2 space-y-6">
 
           {/* Gallery */}
-          <ImageGallery vehicle={vehicle} />
+          <NoVehicleImage />
 
           {/* Title + specs card */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
               <div>
                 <h1 className="text-3xl font-extrabold text-gray-900">{vehicle.make} {vehicle.model}</h1>
-                <p className="text-gray-500 mt-1">{vehicle.year} · {vehicle.registrationNumber} · {vehicle.fuelType}</p>
+                <p className="text-gray-500 mt-1">{vehicle.year} · {vehicle.fuelType} · Registration shared after confirmation</p>
                 {reviews.length > 0 && (
                   <div className="flex items-center gap-2 mt-2">
                     <StarRating rating={avgRating} size="sm" />

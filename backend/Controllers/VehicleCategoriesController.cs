@@ -2,6 +2,7 @@ using backend.Common;
 using backend.DTOs.VehicleCategory;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Controllers;
 
@@ -43,6 +44,7 @@ public class VehicleCategoriesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<VehicleCategoryDto>>> CreateCategory([FromBody] CreateVehicleCategoryRequest request)
     {
         var result = await _vehicleCategoryService.CreateCategoryAsync(request);
@@ -54,6 +56,7 @@ public class VehicleCategoriesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<VehicleCategoryDto>>> UpdateCategory(int id, [FromBody] UpdateVehicleCategoryRequest request)
     {
         var result = await _vehicleCategoryService.UpdateCategoryAsync(id, request);
@@ -64,6 +67,7 @@ public class VehicleCategoriesController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> DeleteCategory(int id)
     {
         var result = await _vehicleCategoryService.DeleteCategoryAsync(id);

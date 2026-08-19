@@ -7,6 +7,7 @@ using backend.DTOs.Payment;
 using backend.DTOs.Review;
 using backend.DTOs.Vehicle;
 using backend.DTOs.VehicleCategory;
+using backend.Enums;
 using backend.Models;
 
 namespace backend.Services.Mappers;
@@ -19,7 +20,6 @@ public static class DtoMapper
         return new VehicleDto
         {
             Id = vehicle.Id,
-            RegistrationNumber = vehicle.RegistrationNumber,
             Make = vehicle.Make,
             Model = vehicle.Model,
             Year = vehicle.Year,
@@ -30,7 +30,6 @@ public static class DtoMapper
             PricePerKm = vehicle.PricePerKm,
             SeatingCapacity = vehicle.SeatingCapacity,
             FuelType = vehicle.FuelType,
-            ImageUrl = vehicle.ImageUrl,
             IsAvailable = vehicle.IsAvailable,
             IsActive = vehicle.IsActive,
             CurrentDriverId = vehicle.CurrentDriverId,
@@ -93,7 +92,10 @@ public static class DtoMapper
             CustomerPhone = booking.Customer?.PhoneNumber ?? string.Empty,
             VehicleId = booking.VehicleId,
             VehicleInfo = booking.Vehicle != null ? $"{booking.Vehicle.Make} {booking.Vehicle.Model}" : string.Empty,
-            VehicleRegistration = booking.Vehicle?.RegistrationNumber ?? string.Empty,
+            VehicleType = booking.Vehicle?.VehicleType ?? VehicleType.MiniCab,
+            VehicleRegistration = booking.Status is BookingStatus.Confirmed or BookingStatus.DriverAssigned or BookingStatus.InProgress or BookingStatus.Completed
+                ? booking.Vehicle?.RegistrationNumber ?? string.Empty
+                : string.Empty,
             DriverId = booking.DriverId,
             DriverName = booking.Driver != null ? $"{booking.Driver.FirstName} {booking.Driver.LastName}" : null,
             DriverPhone = booking.Driver?.PhoneNumber,
@@ -104,6 +106,7 @@ public static class DtoMapper
             ActualPickupTime = booking.ActualPickupTime,
             ActualDropTime = booking.ActualDropTime,
             EstimatedPrice = booking.EstimatedPrice,
+            PaymentStatus = booking.Payments.OrderByDescending(payment => payment.CreatedAt).Select(payment => payment.Status).FirstOrDefault(),
             ActualPrice = booking.ActualPrice,
             DiscountAmount = booking.DiscountAmount,
             CouponCode = booking.Coupon?.Code,

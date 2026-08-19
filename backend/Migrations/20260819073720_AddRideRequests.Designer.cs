@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using backend.Data;
 
@@ -11,9 +12,11 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260819073720_AddRideRequests")]
+    partial class AddRideRequests
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -287,6 +290,44 @@ namespace backend.Migrations
                     b.HasIndex("FirstName", "LastName");
 
                     b.ToTable("Customers");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Address = "123 MG Road, Bangalore",
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "rahul.sharma@example.com",
+                            FirstName = "Rahul",
+                            IsActive = true,
+                            IsVerified = true,
+                            LastName = "Sharma",
+                            PhoneNumber = "+919876543210"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Address = "456 FC Road, Pune",
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "priya.patel@example.com",
+                            FirstName = "Priya",
+                            IsActive = true,
+                            IsVerified = true,
+                            LastName = "Patel",
+                            PhoneNumber = "+919876543211"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Address = "789 CP, Delhi",
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "amit.kumar@example.com",
+                            FirstName = "Amit",
+                            IsActive = true,
+                            IsVerified = false,
+                            LastName = "Kumar",
+                            PhoneNumber = "+919876543212"
+                        });
                 });
 
             modelBuilder.Entity("backend.Models.Driver", b =>
@@ -376,6 +417,59 @@ namespace backend.Migrations
                     b.HasIndex("FirstName", "LastName");
 
                     b.ToTable("Drivers");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Address = "Driver Colony, Bangalore",
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "suresh.singh@example.com",
+                            FirstName = "Suresh",
+                            IsActive = true,
+                            IsVerified = true,
+                            LastName = "Singh",
+                            LicenseExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
+                            LicenseNumber = "DL123456789",
+                            PhoneNumber = "+919876543220",
+                            Rating = 4.5m,
+                            Status = "Available",
+                            TotalTrips = 150
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Address = "Transport Nagar, Pune",
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "ramesh.yadav@example.com",
+                            FirstName = "Ramesh",
+                            IsActive = true,
+                            IsVerified = true,
+                            LastName = "Yadav",
+                            LicenseExpiryDate = new DateTime(2027, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
+                            LicenseNumber = "DL987654321",
+                            PhoneNumber = "+919876543221",
+                            Rating = 4.2m,
+                            Status = "Available",
+                            TotalTrips = 98
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Address = "Lajpat Nagar, Delhi",
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "vijay.gupta@example.com",
+                            FirstName = "Vijay",
+                            IsActive = true,
+                            IsVerified = true,
+                            LastName = "Gupta",
+                            LicenseExpiryDate = new DateTime(2025, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
+                            LicenseNumber = "DL456789123",
+                            PhoneNumber = "+919876543222",
+                            Rating = 4.8m,
+                            Status = "Available",
+                            TotalTrips = 220
+                        });
                 });
 
             modelBuilder.Entity("backend.Models.Notification", b =>

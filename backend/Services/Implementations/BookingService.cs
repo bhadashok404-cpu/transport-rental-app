@@ -5,6 +5,7 @@ using backend.Models;
 using backend.Repositories;
 using backend.Services.Interfaces;
 using backend.Services.Mappers;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services.Implementations;
 
@@ -12,11 +13,13 @@ public class BookingService : IBookingService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly Data.AppDbContext _db;
 
-    public BookingService(IUnitOfWork unitOfWork, INotificationService notificationService)
+    public BookingService(IUnitOfWork unitOfWork, INotificationService notificationService, Data.AppDbContext db)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _db = db;
     }
 
     public async Task<ServiceResult<PagedResult<BookingDto>>> GetPagedBookingsAsync(PaginationParams pagination, BookingStatus? status = null)
@@ -134,6 +137,17 @@ public class BookingService : IBookingService
         await _unitOfWork.Bookings.AddAsync(booking);
         await _unitOfWork.SaveChangesAsync();
 
+        var driverIds = await _db.Drivers
+            .Where(d => d.IsActive)
+            .Select(d => d.Id)
+            .ToListAsync();
+        _db.RideRequests.AddRange(driverIds.Select(driverId => new RideRequest
+        {
+            BookingId = booking.Id,
+            DriverId = driverId
+        }));
+        await _db.SaveChangesAsync();
+
         // Send notification
         await _notificationService.CreateNotificationAsync(new DTOs.Notification.CreateNotificationRequest
         {
@@ -214,16 +228,36 @@ public class BookingService : IBookingService
         if (driver == null)
             return ServiceResult<BookingDto>.Failure("Driver not found");
 
-        if (!driver.IsActive || !driver.IsVerified)
-            return ServiceResult<BookingDto>.Failure("Driver is not available");
+        if (!driver.IsActive)
+            return ServiceResult<BookingDto>.Failure("Driver is not active");
 
-        if (driver.Status != DriverStatus.Available)
-            return ServiceResult<BookingDto>.Failure("Driver is not currently available");
+        if (booking.DriverId.HasValue && booking.DriverId.Value != request.DriverId)
+        {
+            var previousDriver = await _unitOfWork.Drivers.GetByIdAsync(booking.DriverId.Value);
+            if (previousDriver != null)
+            {
+                previousDriver.Status = DriverStatus.Available;
+                previousDriver.LastActiveAt = DateTime.UtcNow;
+                _unitOfWork.Drivers.Update(previousDriver);
+            }
+        }
 
         booking.DriverId = request.DriverId;
         booking.Status = BookingStatus.DriverAssigned;
         booking.UpdatedAt = DateTime.UtcNow;
 
+        var bookingRequests = await _db.RideRequests
+            .Where(requestRow => requestRow.BookingId == bookingId)
+            .ToListAsync();
+        foreach (var bookingRequest in bookingRequests)
+        {
+            bookingRequest.Status = bookingRequest.DriverId == request.DriverId
+                ? RideRequestStatus.Accepted
+                : RideRequestStatus.Rejected;
+            bookingRequest.RespondedAt = DateTime.UtcNow;
+        }
+
+        driver.IsVerified = true;
         driver.Status = DriverStatus.OnTrip;
         driver.LastActiveAt = DateTime.UtcNow;
 
@@ -354,5 +388,115 @@ public class BookingService : IBookingService
         var bookings = await _unitOfWork.Bookings.GetActiveBookingsAsync();
         var dtos = bookings.Select(b => b.ToDto());
         return ServiceResult<IEnumerable<BookingDto>>.Success(dtos);
+    }
+
+    public async Task<ServiceResult<IEnumerable<RideRequestDto>>> GetDriverRideRequestsAsync(int driverId)
+    {
+        var driverEligible = await _db.Drivers.AnyAsync(driver => driver.Id == driverId && driver.IsActive);
+        if (driverEligible)
+        {
+            var existingBookingIds = await _db.RideRequests
+                .Where(request => request.DriverId == driverId)
+                .Select(request => request.BookingId)
+                .ToListAsync();
+            var missingBookingIds = await _db.Bookings
+                .Where(booking => booking.Status == BookingStatus.Confirmed && !booking.DriverId.HasValue && !existingBookingIds.Contains(booking.Id) && booking.Payments.Any(payment => payment.Status == PaymentStatus.Completed))
+                .Select(booking => booking.Id)
+                .ToListAsync();
+            _db.RideRequests.AddRange(missingBookingIds.Select(bookingId => new RideRequest
+            {
+                BookingId = bookingId,
+                DriverId = driverId
+            }));
+            if (missingBookingIds.Count > 0) await _db.SaveChangesAsync();
+        }
+
+        var requests = await _db.RideRequests
+            .Include(r => r.Booking).ThenInclude(b => b.Vehicle)
+            .Include(r => r.Booking).ThenInclude(b => b.Payments)
+            .Include(r => r.Booking).ThenInclude(b => b.Customer)
+            .Where(r => r.DriverId == driverId && r.Status == RideRequestStatus.Pending && r.Booking.Status == BookingStatus.Confirmed)
+            .OrderBy(r => r.Booking.PickupDate)
+            .ToListAsync();
+        return ServiceResult<IEnumerable<RideRequestDto>>.Success(requests.Select(ToRideRequestDto));
+    }
+
+    public async Task<ServiceResult<IEnumerable<RideRequestDto>>> GetAllRideRequestsAsync()
+    {
+        var requests = await _db.RideRequests
+            .Include(r => r.Booking).ThenInclude(b => b.Vehicle)
+            .Include(r => r.Booking).ThenInclude(b => b.Payments)
+            .Include(r => r.Booking).ThenInclude(b => b.Customer)
+            .Include(r => r.Driver)
+            .Where(r => r.Booking.Status == BookingStatus.Confirmed || r.Booking.Status == BookingStatus.DriverAssigned)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+        return ServiceResult<IEnumerable<RideRequestDto>>.Success(requests.Select(ToRideRequestDto));
+    }
+
+    public async Task<ServiceResult<RideRequestDto>> RespondToRideRequestAsync(int requestId, int driverId, bool accept)
+    {
+        var request = await _db.RideRequests
+            .Include(r => r.Booking).ThenInclude(b => b.Payments)
+            .Include(r => r.Booking).ThenInclude(b => b.Vehicle)
+            .Include(r => r.Booking).ThenInclude(b => b.Customer)
+            .Include(r => r.Driver)
+            .FirstOrDefaultAsync(r => r.Id == requestId && r.DriverId == driverId);
+        if (request == null) return ServiceResult<RideRequestDto>.Failure("Ride request not found");
+        if (request.Status != RideRequestStatus.Pending) return ServiceResult<RideRequestDto>.Failure("Ride request already handled");
+
+        if (accept)
+        {
+            if (request.Booking.Payments.All(p => p.Status != PaymentStatus.Completed))
+                return ServiceResult<RideRequestDto>.Failure("Payment is not completed");
+            if (request.Booking.DriverId.HasValue)
+                return ServiceResult<RideRequestDto>.Failure("Ride already accepted by another driver");
+            request.Status = RideRequestStatus.Accepted;
+            request.Booking.DriverId = driverId;
+            request.Booking.Status = BookingStatus.DriverAssigned;
+            request.Booking.UpdatedAt = DateTime.UtcNow;
+            request.Driver.Status = DriverStatus.OnTrip;
+            request.Driver.LastActiveAt = DateTime.UtcNow;
+            var otherRequests = await _db.RideRequests
+                .Where(requestRow => requestRow.BookingId == request.BookingId && requestRow.Id != request.Id && requestRow.Status == RideRequestStatus.Pending)
+                .ToListAsync();
+            foreach (var otherRequest in otherRequests)
+            {
+                otherRequest.Status = RideRequestStatus.Rejected;
+                otherRequest.RespondedAt = DateTime.UtcNow;
+            }
+        }
+        else
+        {
+            request.Status = RideRequestStatus.Rejected;
+        }
+
+        request.RespondedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return ServiceResult<RideRequestDto>.Success(ToRideRequestDto(request), accept ? "Ride accepted" : "Ride rejected");
+    }
+
+    private static RideRequestDto ToRideRequestDto(RideRequest request)
+    {
+        var booking = request.Booking;
+        return new RideRequestDto
+        {
+            Id = request.Id,
+            BookingId = booking.Id,
+            VehicleInfo = $"{booking.Vehicle.Make} {booking.Vehicle.Model}",
+            PickupLocation = booking.PickupLocation,
+            DropLocation = booking.DropLocation,
+            PickupDate = booking.PickupDate,
+            ReturnDate = booking.ReturnDate,
+            EstimatedPrice = booking.EstimatedPrice,
+            PaymentStatus = booking.Payments.FirstOrDefault()?.Status ?? PaymentStatus.Pending,
+            Status = request.Status,
+            DriverName = request.Driver != null ? $"{request.Driver.FirstName} {request.Driver.LastName}" : null,
+            CustomerName = booking.Customer != null
+                ? $"{booking.Customer.FirstName} {booking.Customer.LastName}{(string.IsNullOrWhiteSpace(booking.Customer.PhoneNumber) ? string.Empty : $" · {booking.Customer.PhoneNumber}")}"
+                : null,
+            CustomerPhone = booking.Customer?.PhoneNumber,
+            CustomerEmail = booking.Customer?.Email
+        };
     }
 }

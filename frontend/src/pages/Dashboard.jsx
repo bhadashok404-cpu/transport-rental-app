@@ -60,11 +60,11 @@ function Overview() {
 
   useEffect(() => {
     if (!user?.id) return;
-    bookingService.getByCustomer(user.id, { pageSize: 50 })
+    bookingService.getByCustomer(user.customerId, { pageSize: 50 })
       .then(res => setBookings(res?.data?.items || res?.data || res?.items || res || []))
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
-  }, [user?.id]);
+  }, [user?.customerId]);
 
   const stats = [
     { label: 'Total Bookings', value: bookings.length, icon: Car, color: 'primary' },
@@ -151,11 +151,11 @@ function MyBookings() {
 
   useEffect(() => {
     if (!user?.id) return;
-    bookingService.getByCustomer(user.id, { pageSize: 100 })
+    bookingService.getByCustomer(user.customerId, { pageSize: 100 })
       .then(res => setBookings(res?.data?.items || res?.data || res?.items || res || []))
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
-  }, [user?.id]);
+  }, [user?.customerId]);
 
   const filtered = filter === 'All' ? bookings : bookings.filter(b => b.status === filter);
 
@@ -218,12 +218,13 @@ function BookingDetail() {
         <Badge status={booking.status} />
       </div>
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4 text-sm">
-        <Row label="Vehicle" value={`${booking.vehicle?.make} ${booking.vehicle?.model} (${booking.vehicle?.vehicleType})`} />
+        <Row label="Vehicle" value={`${booking.vehicleInfo || `${booking.vehicle?.make || ''} ${booking.vehicle?.model || ''}`} (${booking.vehicleType || booking.vehicle?.vehicleType || 'Car'})`} />
+        {booking.vehicleRegistration && <Row label="Registration" value={booking.vehicleRegistration} />}
         <Row label="Pickup" value={booking.pickupLocation} />
         <Row label="Drop" value={booking.dropLocation} />
         <Row label="Pickup Date" value={new Date(booking.pickupDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} />
         {booking.returnDate && <Row label="Return Date" value={new Date(booking.returnDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} />}
-        {booking.driver && <Row label="Driver" value={`${booking.driver.firstName} ${booking.driver.lastName} · ⭐ ${booking.driver.rating}`} />}
+        {booking.driverName && <Row label="Driver" value={`${booking.driverName}${booking.driverPhone ? ` · ${booking.driverPhone}` : ''}`} />}
         <div className="border-t border-gray-100 pt-4 flex justify-between font-bold text-base text-gray-900">
           <span>Total Amount</span>
           <span className="text-primary-700">₹{booking.actualPrice || booking.estimatedPrice}</span>
@@ -293,7 +294,7 @@ function Profile() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center gap-5 mb-8 pb-6 border-b border-gray-100">
-          <div className="w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-700 rounded-2xl flex items-center justify-center text-white text-3xl font-black shadow-lg">
+          <div className="w-20 h-20 bg-linear-to-br from-primary-400 to-primary-700 rounded-2xl flex items-center justify-center text-white text-3xl font-black shadow-lg">
             {user?.firstName?.[0]}{user?.lastName?.[0]}
           </div>
           <div>

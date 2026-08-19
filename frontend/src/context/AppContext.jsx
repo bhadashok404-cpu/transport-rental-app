@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { customerService, notificationService } from '../services';
+import { authService, notificationService } from '../services';
 
 const AppContext = createContext(null);
 
@@ -31,9 +31,13 @@ export const AppProvider = ({ children }) => {
 
   // ── Load notifications when user is set ───────────────
   const loadNotifications = useCallback(async () => {
-    if (!user?.id) return;
+    if (user?.role !== 'Customer' || !user?.customerId) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
     try {
-      const res = await notificationService.getByCustomer(user.id, { pageSize: 20 });
+      const res = await notificationService.getByCustomer(user.customerId, { pageSize: 20 });
       const items = res?.data || res?.items || res || [];
       setNotifications(Array.isArray(items) ? items : []);
       const unread = Array.isArray(items) ? items.filter(n => !n.isRead).length : 0;
@@ -41,24 +45,27 @@ export const AppProvider = ({ children }) => {
     } catch {
       // silent — notifications are non-critical
     }
-  }, [user?.id]);
+  }, [user?.role, user?.customerId]);
 
   useEffect(() => { loadNotifications(); }, [loadNotifications]);
 
   // ── Auth helpers ───────────────────────────────────────
-  const login = async (email, _password) => {
-    // The backend has no JWT yet — simulate by fetching the customer by email
-    const res = await customerService.getByEmail(email);
-    const customer = res?.data || res;
-    setUser(customer);
-    return customer;
+  const login = async (email, password, role = 'Customer') => {
+    const res = await authService.login({ email, password, role });
+    const session = res?.data || res;
+    localStorage.setItem('token', session.token);
+    const user = { id: session.userId, customerId: session.customerId, driverId: session.driverId, email: session.email, name: session.fullName, role: session.role };
+    setUser(user);
+    return user;
   };
 
   const register = async (data) => {
-    const res = await customerService.create(data);
-    const customer = res?.data || res;
-    setUser(customer);
-    return customer;
+    const res = await authService.register(data);
+    const session = res?.data || res;
+    localStorage.setItem('token', session.token);
+    const user = { id: session.userId, customerId: session.customerId, driverId: session.driverId, email: session.email, name: session.fullName, role: session.role };
+    setUser(user);
+    return user;
   };
 
   const logout = () => {

@@ -58,7 +58,7 @@ export default function Home() {
     <div className="min-h-screen">
 
       {/* ── HERO ──────────────────────────────────────────── */}
-      <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-gradient-to-br from-gray-900 via-primary-950 to-primary-900">
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-linear-to-br from-gray-900 via-primary-950 to-primary-900">
         {/* Background pattern */}
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
@@ -77,7 +77,7 @@ export default function Home() {
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white leading-tight mb-6 text-shadow-lg">
               Your Ride,
               <br />
-              <span className="bg-gradient-to-r from-primary-300 to-accent-400 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-primary-300 to-accent-400 bg-clip-text text-transparent">
                 Your Rules
               </span>
             </h1>
@@ -194,10 +194,10 @@ export default function Home() {
             {HOW_IT_WORKS.map(({ step, title, desc }, i) => (
               <div key={step} className="relative">
                 {i < HOW_IT_WORKS.length - 1 && (
-                  <div className="hidden lg:block absolute top-8 left-full w-full h-0.5 bg-gradient-to-r from-primary-200 to-transparent z-0" />
+                  <div className="hidden lg:block absolute top-8 left-full w-full h-0.5 bg-linear-to-r from-primary-200 to-transparent z-0" />
                 )}
                 <div className="relative bg-white rounded-2xl p-7 shadow-sm border border-gray-100 hover:shadow-md transition">
-                  <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center text-white font-black text-lg mb-5 shadow-lg">
+                  <div className="w-14 h-14 bg-linear-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center text-white font-black text-lg mb-5 shadow-lg">
                     {step}
                   </div>
                   <h3 className="font-bold text-gray-900 text-lg mb-2">{title}</h3>
@@ -248,7 +248,7 @@ export default function Home() {
       </section>
 
       {/* ── TESTIMONIALS ──────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-br from-primary-50 to-white">
+      <section className="py-20 bg-linear-to-br from-primary-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <p className="text-primary-600 font-semibold text-sm uppercase tracking-widest mb-2">Reviews</p>
@@ -264,7 +264,7 @@ export default function Home() {
                 </div>
                 <p className="text-gray-600 text-sm leading-relaxed mb-5 italic">"{text}"</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  <div className="w-10 h-10 bg-linear-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                     {name[0]}
                   </div>
                   <div>
@@ -279,7 +279,7 @@ export default function Home() {
       </section>
 
       {/* ── CTA ───────────────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-r from-primary-600 to-primary-800">
+      <section className="py-20 bg-linear-to-r from-primary-600 to-primary-800">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <Truck className="w-16 h-16 text-white/30 mx-auto mb-6" />
           <h2 className="text-4xl font-extrabold text-white mb-4">Ready to Hit the Road?</h2>

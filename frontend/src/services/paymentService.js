@@ -14,7 +14,7 @@ const paymentService = {
   create: (paymentData) => api.post('/payments', paymentData),
 
   // Process payment
-  process: (id, paymentDetails) => api.post(`/payments/${id}/process`, paymentDetails),
+  process: (id, paymentDetails) => api.patch(`/payments/${id}/process`, paymentDetails),
 
   // Get payments by booking
   getByBooking: (bookingId) => api.get(`/payments/booking/${bookingId}`),

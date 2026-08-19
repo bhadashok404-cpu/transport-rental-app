@@ -2,6 +2,7 @@ using backend.Common;
 using backend.DTOs.Vehicle;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Controllers;
 
@@ -61,6 +62,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<VehicleDto>>> CreateVehicle([FromBody] CreateVehicleRequest request)
     {
         var result = await _vehicleService.CreateVehicleAsync(request);
@@ -72,6 +74,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<VehicleDto>>> UpdateVehicle(int id, [FromBody] UpdateVehicleRequest request)
     {
         var result = await _vehicleService.UpdateVehicleAsync(id, request);
@@ -82,6 +85,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> DeleteVehicle(int id)
     {
         var result = await _vehicleService.DeleteVehicleAsync(id);
@@ -92,6 +96,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPatch("{id:int}/toggle-availability")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> ToggleAvailability(int id)
     {
         var result = await _vehicleService.ToggleAvailabilityAsync(id);

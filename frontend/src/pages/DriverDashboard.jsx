@@ -1,215 +1,88 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Car, User, LogOut, ChevronRight, TrendingUp, CheckCircle, Clock } from 'lucide-react';
-import { driverService, bookingService } from '../services';
-import { Badge, Loader, EmptyState } from '../components';
+import { Car, CheckCircle, ClipboardList, Clock3, Inbox, LogOut, MapPin, Play, Route as RouteIcon } from 'lucide-react';
+import { bookingService } from '../services';
+import { useApp } from '../context/AppContext';
+import { Badge, EmptyState, Loader } from '../components';
 
-const DEMO_DRIVER = { id: 1, firstName: 'Suresh', lastName: 'Singh', email: 'suresh.singh@example.com', rating: 4.5, totalTrips: 150, status: 'Available' };
+const listFrom = (response) => response?.data?.items || response?.data || response?.items || response || [];
 
 function DriverSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const links = [
-    { to: '/driver', label: 'Overview', icon: LayoutDashboard },
-    { to: '/driver/trips', label: 'My Trips', icon: Car },
-    { to: '/driver/profile', label: 'Profile', icon: User },
-  ];
-  return (
-    <aside className="w-64 bg-gray-900 min-h-screen flex flex-col">
-      <div className="p-6 border-b border-gray-700">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center text-white font-bold">D</div>
-          <div>
-            <p className="text-white font-bold text-sm">Driver Portal</p>
-            <p className="text-gray-400 text-xs">RideRental</p>
-          </div>
-        </div>
-      </div>
-      <nav className="flex-1 p-4 space-y-1">
-        {links.map(({ to, label, icon: Icon }) => {
-          const active = pathname === to || (to !== '/driver' && pathname.startsWith(to));
-          return (
-            <Link key={to} to={to}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${active ? 'bg-primary-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}>
-              <Icon className="w-4 h-4" />{label}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="p-4 border-t border-gray-700">
-        <button onClick={() => navigate('/')}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-gray-800 w-full transition">
-          <LogOut className="w-4 h-4" /> Exit Portal
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function DriverOverview() {
-  const driver = DEMO_DRIVER;
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-
+  const { user } = useApp();
+  const [counts, setCounts] = useState({ requests: 0, assigned: 0, todo: 0, ongoing: 0, completed: 0 });
+  const driverId = user?.driverId;
   useEffect(() => {
-    bookingService.getByDriver(driver.id, { pageSize: 50 })
-      .then(res => setBookings(res?.data?.items || res?.data || res?.items || res || []))
-      .catch(() => setBookings([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const stats = [
-    { label: 'Total Trips', value: driver.totalTrips, icon: Car, color: 'text-primary-600 bg-primary-50' },
-    { label: 'Rating', value: `${driver.rating} ★`, icon: TrendingUp, color: 'text-yellow-600 bg-yellow-50' },
-    { label: 'Completed', value: bookings.filter(b => b.status === 'Completed').length, icon: CheckCircle, color: 'text-green-600 bg-green-50' },
-    { label: 'Upcoming', value: bookings.filter(b => b.status === 'Confirmed').length, icon: Clock, color: 'text-blue-600 bg-blue-50' },
+    if (!driverId) return undefined;
+    const loadCounts = async () => {
+      const [requestResponse, rideResponse] = await Promise.allSettled([bookingService.getDriverRequests(driverId), bookingService.getByDriver(driverId, { pageSize: 100 })]);
+      const requests = requestResponse.status === 'fulfilled' ? listFrom(requestResponse.value) : [];
+      const rides = rideResponse.status === 'fulfilled' ? listFrom(rideResponse.value) : [];
+      const pending = requests.filter(request => request.status === 'Pending' || request.status === 0).length;
+      const count = status => rides.filter(ride => ride.status === status).length;
+      setCounts({ requests: pending, assigned: count('DriverAssigned'), todo: rides.filter(ride => ['Confirmed', 'DriverAssigned'].includes(ride.status)).length, ongoing: count('InProgress'), completed: count('Completed') });
+    };
+    loadCounts();
+    const timer = window.setInterval(loadCounts, 5000);
+    return () => window.clearInterval(timer);
+  }, [driverId]);
+  const items = [
+    ['/driver/requests', 'New requests', Inbox, counts.requests],
+    ['/driver/assigned', 'Assigned by admin', ClipboardList, counts.assigned],
+    ['/driver/todo', 'To do rides', Clock3, counts.todo],
+    ['/driver/ongoing', 'Ongoing ride', RouteIcon, counts.ongoing],
+    ['/driver/completed', 'Completed', CheckCircle, counts.completed],
   ];
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-gray-900">Welcome, {driver.firstName}! 🚗</h1>
-          <p className="text-gray-500 mt-1">Here's your driving activity overview.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${driver.status === 'Available' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-          <span className="text-sm font-semibold text-gray-700">{driver.status}</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        {stats.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${color}`}>
-              <Icon className="w-5 h-5" />
-            </div>
-            <p className="text-2xl font-extrabold text-gray-900">{value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-bold text-gray-900">Assigned Trips</h2>
-          <Link to="/driver/trips" className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
-            View all <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-        {loading ? <Loader /> : bookings.length === 0 ? (
-          <EmptyState icon={Car} title="No trips assigned" description="New trips will appear here" />
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {bookings.slice(0, 5).map(b => (
-              <div key={b.id} className="flex items-center justify-between px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-primary-50 rounded-xl flex items-center justify-center shrink-0">
-                    <Car className="w-4 h-4 text-primary-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{b.pickupLocation} → {b.dropLocation}</p>
-                    <p className="text-xs text-gray-400">{new Date(b.pickupDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-primary-700">₹{b.estimatedPrice || 0}</span>
-                  <Badge status={b.status} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return <aside className="w-64 bg-gray-900 min-h-screen flex flex-col"><div className="p-6 border-b border-gray-700"><p className="text-white font-bold">Driver Portal</p><p className="text-gray-400 text-xs mt-1">Ride operations</p></div><nav className="flex-1 p-4 space-y-2">{items.map(([to, label, Icon, count]) => <Link key={to} to={to} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium ${pathname === to ? 'bg-primary-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}><Icon className="w-4 h-4" /><span className="flex-1">{label}</span>{count > 0 && <span className="min-w-5 h-5 px-1.5 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center">{count}</span>}</Link>)}</nav><div className="p-4 border-t border-gray-700"><button onClick={() => navigate('/login')} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-gray-800 w-full"><LogOut className="w-4 h-4" />Sign Out</button></div></aside>;
 }
 
-function DriverTrips() {
-  const [bookings, setBookings] = useState([]);
+function RideCard({ booking, onAction, busy }) {
+  const canStart = ['Confirmed', 'DriverAssigned'].includes(booking.status);
+  const canFinish = booking.status === 'InProgress';
+  return <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4"><div className="flex justify-between gap-4"><div><p className="font-bold text-gray-900">Ride #{booking.id}</p><p className="text-sm text-gray-600 mt-1 flex items-start gap-2"><MapPin className="w-4 h-4 text-primary-600 mt-0.5 shrink-0" />{booking.pickupLocation} to {booking.dropLocation}</p><p className="text-xs text-gray-400 mt-2">{new Date(booking.pickupDate).toLocaleString('en-IN')}</p><p className="text-sm text-gray-700 mt-2">Customer: <strong>{booking.customerName || 'Customer'}</strong>{booking.customerPhone ? ` · ${booking.customerPhone}` : ''}</p><p className="text-sm text-gray-700">Vehicle: <strong>{booking.vehicleInfo || 'Assigned vehicle'}</strong></p></div><Badge status={booking.status} /></div><div className="flex gap-2">{canStart && <button disabled={busy} onClick={() => onAction(booking, 'start')} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold disabled:opacity-50"><Play className="w-4 h-4" />Start pickup</button>}{canFinish && <button disabled={busy} onClick={() => onAction(booking, 'finish')} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold disabled:opacity-50"><CheckCircle className="w-4 h-4" />Finish ride</button>}</div></div>;
+}
+
+function DriverRideList({ filter }) {
+  const { user } = useApp();
+  const [rides, setRides] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(null);
+  const driverId = user?.driverId;
+  const load = () => {
+    if (!driverId) return Promise.resolve().finally(() => setLoading(false));
+    const assigned = bookingService.getByDriver(driverId, { pageSize: 100 }).then(response => setRides(listFrom(response))).catch(() => setRides([]));
+    const incoming = bookingService.getDriverRequests(driverId).then(response => setRequests(listFrom(response))).catch(() => setRequests([]));
+    return Promise.all([assigned, incoming]).finally(() => setLoading(false));
+  };
+  useEffect(() => { setLoading(true); load(); }, [driverId]);
 
-  useEffect(() => {
-    bookingService.getByDriver(DEMO_DRIVER.id, { pageSize: 100 })
-      .then(res => setBookings(res?.data?.items || res?.data || res?.items || res || []))
-      .catch(() => setBookings([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const action = async (booking, type) => {
+    setBusy(booking.id);
+    try {
+      if (type === 'start') await bookingService.startTrip(booking.id);
+      else {
+        const actualDistance = window.prompt('Enter the actual distance in km', booking.distanceInKm || '');
+        if (actualDistance === null) return;
+        await bookingService.complete(booking.id, Number(actualDistance));
+      }
+      await load();
+    } finally { setBusy(null); }
+  };
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-extrabold text-gray-900">My Trips</h1>
-      {loading ? <Loader /> : bookings.length === 0 ? (
-        <EmptyState icon={Car} title="No trips found" description="Your assigned trips will appear here." />
-      ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="divide-y divide-gray-50">
-            {bookings.map(b => (
-              <div key={b.id} className="px-6 py-4 hover:bg-gray-50 transition">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm">Trip #{b.id}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{b.pickupLocation} → {b.dropLocation}</p>
-                    <p className="text-xs text-gray-400">{new Date(b.pickupDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                  </div>
-                  <div className="text-right flex flex-col items-end gap-2">
-                    <span className="text-base font-extrabold text-primary-700">₹{b.estimatedPrice || 0}</span>
-                    <Badge status={b.status} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+  const respond = async (request, accept) => {
+    setBusy(`request-${request.id}`);
+    try { await bookingService.respondToRequest(request.id, driverId, accept); await load(); } finally { setBusy(null); }
+  };
 
-function DriverProfile() {
-  const d = DEMO_DRIVER;
-  return (
-    <div className="space-y-6 max-w-xl">
-      <h1 className="text-2xl font-extrabold text-gray-900">Driver Profile</h1>
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center gap-5 mb-6 pb-6 border-b border-gray-100">
-          <div className="w-20 h-20 bg-gradient-to-br from-gray-700 to-gray-900 rounded-2xl flex items-center justify-center text-white text-3xl font-black shadow-lg">
-            {d.firstName[0]}{d.lastName[0]}
-          </div>
-          <div>
-            <p className="text-xl font-bold text-gray-900">{d.firstName} {d.lastName}</p>
-            <p className="text-gray-500 text-sm">{d.email}</p>
-            <div className="flex items-center gap-3 mt-2 text-sm">
-              <span className="text-yellow-600 font-bold">⭐ {d.rating}</span>
-              <span className="text-gray-400">·</span>
-              <span className="text-gray-600">{d.totalTrips} trips</span>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-4">
-          {[['Status', d.status], ['Total Trips', d.totalTrips], ['Average Rating', `${d.rating} / 5.0`]].map(([k, v]) => (
-            <div key={k} className="flex justify-between py-2 border-b border-gray-50 last:border-0">
-              <span className="text-sm text-gray-500">{k}</span>
-              <span className="text-sm font-semibold text-gray-900">{v}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  if (!driverId) return <EmptyState icon={Car} title="Driver profile unavailable" description="Sign in again after your driver registration is complete." />;
+  const titles = { requests: ['New Requests', 'Review customer requests and accept the rides you can take.'], assigned: ['Assigned by Admin', 'Rides assigned to you by the admin.'], todo: ['To Do Rides', 'Confirmed and assigned rides ready for pickup.'], ongoing: ['Ongoing Ride', 'Rides currently in progress.'], completed: ['Completed Rides', 'Your completed customer rides.'] };
+  const [title, description] = titles[filter];
+  const visibleRides = rides.filter(booking => filter === 'assigned' ? booking.status === 'DriverAssigned' : filter === 'todo' ? ['Confirmed', 'DriverAssigned'].includes(booking.status) : filter === 'ongoing' ? booking.status === 'InProgress' : filter === 'completed' ? booking.status === 'Completed' : false);
+  return <div className="space-y-6"><div><h1 className="text-2xl font-extrabold text-gray-900">{title}</h1><p className="text-gray-500 mt-1">{description}</p></div>{loading ? <Loader /> : filter === 'requests' ? requests.length === 0 ? <EmptyState icon={Inbox} title="No new requests" description="New customer requests will appear here." /> : <div className="grid gap-4">{requests.filter(request => request.status === 'Pending' || request.status === 0).map(request => <div key={request.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm"><div className="flex justify-between gap-4"><div><p className="font-bold">Ride #{request.bookingId}</p><p className="text-sm text-gray-600 mt-1">{request.pickupLocation} to {request.dropLocation}</p><p className="text-xs text-gray-400 mt-2">{new Date(request.pickupDate).toLocaleString('en-IN')}</p><p className="text-sm text-gray-700 mt-2">Customer: <strong>{request.customerName || 'Customer'}</strong></p></div><Badge status={request.status} /></div><div className="flex gap-2 mt-4"><button disabled={busy === `request-${request.id}`} onClick={() => respond(request, true)} className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold disabled:opacity-50">Accept request</button><button disabled={busy === `request-${request.id}`} onClick={() => respond(request, false)} className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 text-sm font-semibold disabled:opacity-50">Reject</button></div></div>)}</div> : visibleRides.length === 0 ? <EmptyState icon={Car} title="No rides in this section" description="Rides will appear here as their status changes." /> : <div className="grid gap-4">{visibleRides.map(booking => <RideCard key={booking.id} booking={booking} onAction={action} busy={busy === booking.id} />)}</div>}</div>;
 }
 
 export default function DriverDashboard() {
-  return (
-    <div className="flex min-h-screen pt-16 bg-gray-50">
-      <DriverSidebar />
-      <main className="flex-1 p-8 overflow-auto">
-        <Routes>
-          <Route index element={<DriverOverview />} />
-          <Route path="trips" element={<DriverTrips />} />
-          <Route path="profile" element={<DriverProfile />} />
-        </Routes>
-      </main>
-    </div>
-  );
+  return <div className="flex min-h-screen pt-16 bg-gray-50"><DriverSidebar /><main className="flex-1 p-8 overflow-auto"><Routes><Route index element={<DriverRideList filter="assigned" />} /><Route path="requests" element={<DriverRideList filter="requests" />} /><Route path="assigned" element={<DriverRideList filter="assigned" />} /><Route path="todo" element={<DriverRideList filter="todo" />} /><Route path="ongoing" element={<DriverRideList filter="ongoing" />} /><Route path="completed" element={<DriverRideList filter="completed" />} /></Routes></main></div>;
 }

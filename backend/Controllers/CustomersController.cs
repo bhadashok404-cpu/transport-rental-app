@@ -2,6 +2,7 @@ using backend.Common;
 using backend.DTOs.Customer;
 using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Controllers;
 
@@ -17,6 +18,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<PagedResult<CustomerDto>>>> GetCustomers(
         [FromQuery] PaginationParams pagination,
         [FromQuery] string? searchTerm = null)
@@ -27,6 +29,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [Authorize(Roles = "Admin,Customer")]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> GetCustomer(int id)
     {
         var result = await _customerService.GetCustomerByIdAsync(id);
@@ -37,6 +40,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet("by-email/{email}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> GetCustomerByEmail(string email)
     {
         var result = await _customerService.GetCustomerByEmailAsync(email);
@@ -47,6 +51,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> CreateCustomer([FromBody] CreateCustomerRequest request)
     {
         var result = await _customerService.CreateCustomerAsync(request);
@@ -58,6 +63,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin,Customer")]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> UpdateCustomer(int id, [FromBody] UpdateCustomerRequest request)
     {
         var result = await _customerService.UpdateCustomerAsync(id, request);
@@ -68,6 +74,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> DeleteCustomer(int id)
     {
         var result = await _customerService.DeleteCustomerAsync(id);
@@ -78,6 +85,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPatch("{id:int}/verify")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> VerifyCustomer(int id)
     {
         var result = await _customerService.VerifyCustomerAsync(id);

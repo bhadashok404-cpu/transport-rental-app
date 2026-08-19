@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AppProvider } from './context/AppContext';
 import Navbar from './components/Navbar';
@@ -13,9 +13,11 @@ import BookingConfirm from './pages/BookingConfirm';
 import BookingSuccess from './pages/BookingSuccess';
 import Dashboard from './pages/Dashboard';
 import DriverDashboard from './pages/DriverDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import { useApp } from './context/AppContext';
 
 // Pages that use their own full-screen layout (no shared Navbar/Footer)
-const STANDALONE_PREFIXES = ['/login', '/register', '/driver'];
+const STANDALONE_PREFIXES = ['/login', '/register', '/driver', '/admin'];
 
 function Layout() {
   const { pathname } = useLocation();
@@ -28,7 +30,8 @@ function Layout() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/driver/*" element={<DriverDashboard />} />
+          <Route path="/driver/*" element={<RoleOnly role="Driver"><DriverDashboard /></RoleOnly>} />
+          <Route path="/admin/*" element={<RoleOnly role="Admin"><AdminDashboard /></RoleOnly>} />
         </Routes>
       </>
     );
@@ -39,12 +42,12 @@ function Layout() {
       <Navbar />
       <main className="flex-1 pt-16">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/vehicles" element={<Vehicles />} />
-          <Route path="/vehicles/:id" element={<VehicleDetail />} />
-          <Route path="/booking/confirm" element={<BookingConfirm />} />
-          <Route path="/booking/success/:id" element={<BookingSuccess />} />
-          <Route path="/dashboard/*" element={<Dashboard />} />
+          <Route path="/" element={<HomeEntry />} />
+          <Route path="/vehicles" element={<CustomerOnly><Vehicles /></CustomerOnly>} />
+          <Route path="/vehicles/:id" element={<CustomerOnly><VehicleDetail /></CustomerOnly>} />
+          <Route path="/booking/confirm" element={<CustomerOnly><BookingConfirm /></CustomerOnly>} />
+          <Route path="/booking/success/:id" element={<CustomerOnly><BookingSuccess /></CustomerOnly>} />
+          <Route path="/dashboard/*" element={<CustomerOnly><Dashboard /></CustomerOnly>} />
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -52,6 +55,25 @@ function Layout() {
       <Footer />
     </div>
   );
+}
+
+function CustomerOnly({ children }) {
+  const { user } = useApp();
+  if (!user) return <Navigate to="/login" replace />;
+  return user.role === 'Customer' ? children : <Navigate to={user.role === 'Admin' ? '/admin' : '/driver'} replace />;
+}
+
+function HomeEntry() {
+  const { user } = useApp();
+  if (user?.role === 'Admin') return <Navigate to="/admin" replace />;
+  if (user?.role === 'Driver') return <Navigate to="/driver" replace />;
+  return <Home />;
+}
+
+function RoleOnly({ role, children }) {
+  const { user } = useApp();
+  if (!user) return <Navigate to="/login" replace />;
+  return user.role === role ? children : <Navigate to={user.role === 'Admin' ? '/admin' : user.role === 'Driver' ? '/driver' : '/vehicles'} replace />;
 }
 
 function NotFound() {

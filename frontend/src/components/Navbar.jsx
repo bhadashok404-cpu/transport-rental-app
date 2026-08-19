@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Car, Menu, X, Bell, User, LogOut, ChevronDown,
@@ -12,18 +12,31 @@ const Navbar = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/login');
     setUserMenuOpen(false);
   };
 
-  const navLinks = [
+  const customerNavigation = !user || user.role === 'Customer';
+  const navLinks = customerNavigation ? [
     { label: 'Home', to: '/' },
     { label: 'Vehicles', to: '/vehicles' },
     { label: 'How It Works', to: '/#how-it-works' },
-  ];
+  ] : [];
+  const homePath = user?.role === 'Admin' ? '/admin' : user?.role === 'Driver' ? '/driver' : '/';
 
   const isActive = (to) => location.pathname === to;
 
@@ -33,8 +46,8 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-primary-300 transition-shadow">
+          <Link to={homePath} className="flex items-center gap-2 group">
+            <div className="w-9 h-9 bg-linear-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-primary-300 transition-shadow">
               <Car className="w-5 h-5 text-white" />
             </div>
             <div className="leading-tight">
@@ -66,7 +79,7 @@ const Navbar = () => {
               <>
                 {/* Notifications */}
                 <Link
-                  to="/dashboard/notifications"
+                  to={user.role === 'Admin' ? '/admin' : user.role === 'Driver' ? '/driver' : '/dashboard/notifications'}
                   className="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition"
                 >
                   <Bell className="w-5 h-5" />
@@ -78,16 +91,16 @@ const Navbar = () => {
                 </Link>
 
                 {/* User menu */}
-                <div className="relative">
+                <div ref={userMenuRef} className="relative">
                   <button
                     onClick={() => setUserMenuOpen(v => !v)}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition"
                   >
-                    <div className="w-8 h-8 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                      {user.firstName?.[0]}{user.lastName?.[0]}
+                    <div className="w-8 h-8 bg-linear-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                      {user.firstName?.[0] || user.name?.[0] || user.role?.[0]}{user.lastName?.[0] || user.name?.split(' ')[1]?.[0]}
                     </div>
                     <span className="hidden md:block text-sm font-medium text-gray-700">
-                      {user.firstName}
+                      {user.firstName || user.name || user.role}
                     </span>
                     <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -95,30 +108,30 @@ const Navbar = () => {
                   {userMenuOpen && (
                     <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 animate-slide-down">
                       <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-gray-900">{user.firstName} {user.lastName}</p>
+                        <p className="text-sm font-semibold text-gray-900">{user.name || `${user.firstName || ''} ${user.lastName || ''}`}</p>
                         <p className="text-xs text-gray-500 truncate">{user.email}</p>
                       </div>
                       <Link
-                        to="/dashboard"
+                        to={user.role === 'Admin' ? '/admin' : user.role === 'Driver' ? '/driver' : '/dashboard'}
                         onClick={() => setUserMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
                       >
-                        <LayoutDashboard className="w-4 h-4 text-gray-400" /> My Dashboard
+                        <LayoutDashboard className="w-4 h-4 text-gray-400" /> {user.role === 'Admin' ? 'Admin Operations' : user.role === 'Driver' ? 'Driver Portal' : 'My Dashboard'}
                       </Link>
-                      <Link
+                      {user.role === 'Customer' && <Link
                         to="/dashboard/bookings"
                         onClick={() => setUserMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
                       >
                         <MapPin className="w-4 h-4 text-gray-400" /> My Bookings
-                      </Link>
-                      <Link
+                      </Link>}
+                      {user.role === 'Customer' && <Link
                         to="/dashboard/profile"
                         onClick={() => setUserMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
                       >
                         <User className="w-4 h-4 text-gray-400" /> Profile
-                      </Link>
+                      </Link>}
                       <div className="border-t border-gray-100 mt-1">
                         <button
                           onClick={handleLogout}
