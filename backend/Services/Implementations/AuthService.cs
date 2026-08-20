@@ -56,7 +56,7 @@ public class AuthService : IAuthService
             driver.IsVerified = false;
             driver.Status = DriverStatus.Offline;
             if (driver.CreatedAt == default) driver.CreatedAt = DateTime.UtcNow;
-            account = new UserAccount { Email = email, Role = UserRole.Driver, Driver = driver };
+            account = new UserAccount { DisplayName = $"{driver.FirstName} {driver.LastName}".Trim(), Email = email, Role = UserRole.Driver, Driver = driver };
             fullName = $"{driver.FirstName} {driver.LastName}";
         }
         else
@@ -69,13 +69,52 @@ public class AuthService : IAuthService
             customer.Address = request.Address.Trim();
             customer.IsActive = true;
             if (customer.CreatedAt == default) customer.CreatedAt = DateTime.UtcNow;
-            account = new UserAccount { Email = email, Role = UserRole.Customer, Customer = customer };
+            account = new UserAccount { DisplayName = $"{customer.FirstName} {customer.LastName}".Trim(), Email = email, Role = UserRole.Customer, Customer = customer };
             fullName = $"{customer.FirstName} {customer.LastName}";
         }
         account.PasswordHash = _hasher.HashPassword(account, request.Password);
         _db.UserAccounts.Add(account);
         await _db.SaveChangesAsync();
         return ServiceResult<AuthResponse>.Success(CreateResponse(account, fullName), "Account created successfully");
+    }
+
+    public async Task<ServiceResult> CreateAdminAsync(CreateAdminRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return ServiceResult.Failure("Admin name is required");
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
+            return ServiceResult.Failure("Password must be at least 8 characters");
+
+        var email = request.Email.Trim().ToLowerInvariant();
+        if (await _db.UserAccounts.AnyAsync(user => user.Email == email))
+            return ServiceResult.Failure("Email is already registered");
+
+        var account = new UserAccount
+        {
+            DisplayName = request.Name.Trim(),
+            Email = email,
+            Role = UserRole.Admin,
+            IsActive = true,
+            PasswordHash = _hasher.HashPassword(new UserAccount(), request.Password)
+        };
+        _db.UserAccounts.Add(account);
+        await _db.SaveChangesAsync();
+        return ServiceResult.Success("Admin account created successfully");
+    }
+
+    public async Task<ServiceResult> ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            return ServiceResult.Failure("Password must be at least 8 characters");
+
+        var email = request.Email.Trim().ToLowerInvariant();
+        var account = await _db.UserAccounts.FirstOrDefaultAsync(user => user.Email == email && user.Role == request.Role && user.IsActive);
+        if (account == null)
+            return ServiceResult.Failure("No active account matches that email and role");
+
+        account.PasswordHash = _hasher.HashPassword(account, request.NewPassword);
+        await _db.SaveChangesAsync();
+        return ServiceResult.Success("Password reset successfully");
     }
 
     public async Task<ServiceResult<AuthResponse>> LoginAsync(LoginRequest request)
@@ -88,7 +127,7 @@ public class AuthService : IAuthService
 
         var fullName = account.Customer != null
             ? $"{account.Customer.FirstName} {account.Customer.LastName}"
-            : account.Driver != null ? $"{account.Driver.FirstName} {account.Driver.LastName}" : "Administrator";
+            : account.Driver != null ? $"{account.Driver.FirstName} {account.Driver.LastName}" : string.IsNullOrWhiteSpace(account.DisplayName) ? "Administrator" : account.DisplayName;
         return ServiceResult<AuthResponse>.Success(CreateResponse(account, fullName), "Login successful");
     }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Car, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, Car, Eye, EyeOff, ShieldCheck, ArrowRight, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import toast from 'react-hot-toast';
 
@@ -17,97 +17,97 @@ export default function Login() {
     setLoading(true);
     try {
       const session = await login(form.email, form.password, form.role);
-      toast.success('Welcome back!');
+      toast.success('Welcome back! 🎉');
       navigate(session.role === 'Admin' ? '/admin' : session.role === 'Driver' ? '/driver' : '/dashboard');
     } catch (err) {
-      toast.error(err?.message || 'Invalid email, password, or selected role.');
-    } finally {
-      setLoading(false);
-    }
+      toast.error(err?.message || 'Invalid credentials. Please try again.');
+    } finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center px-4 py-20">
-      <div className="w-full max-w-md">
-        {/* Card */}
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-linear-to-r from-primary-600 to-primary-800 px-8 py-10 text-center">
-            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Car className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl font-extrabold text-white">Welcome Back</h1>
-            <p className="text-primary-200 mt-1.5 text-sm">Sign in to your RideRental account</p>
-          </div>
+    <div className="min-h-screen relative overflow-hidden gradient-hero flex items-center justify-center px-4 py-8">
+      {/* Blobs */}
+      <div className="blob blob-blue w-96 h-96 top-0 right-0 translate-x-1/3 -translate-y-1/3 opacity-50" />
+      <div className="blob blob-violet w-72 h-72 bottom-0 left-0 -translate-x-1/3 translate-y-1/3 opacity-40" />
 
-          {/* Form */}
-          <div className="px-8 py-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Login As</label>
-                <div className="relative">
-                  <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-                    className="w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none transition">
-                    <option value="Admin">Admin</option>
-                    <option value="Customer">Customer</option>
-                    <option value="Driver">Driver</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    placeholder="you@example.com"
-                    className="w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none transition"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type={showPwd ? 'text' : 'password'}
-                    value={form.password}
-                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    placeholder="••••••••"
-                    className="w-full pl-11 pr-12 py-3.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none transition"
-                  />
-                  <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {loading ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Sign In'}
-              </button>
-            </form>
-
-            <div className="mt-6 text-center text-sm text-gray-500">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-primary-600 font-semibold hover:text-primary-700 transition">Create one free</Link>
-            </div>
+      <div className="relative w-full max-w-md animate-pop">
+        {/* Top badge */}
+        <div className="flex justify-center mb-6">
+          <div className="glass-dark rounded-full px-4 py-2 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span className="text-white/80 text-sm font-medium">Sign in to RideRental</span>
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
-          By signing in, you agree to our{' '}
-          <a href="#" className="text-primary-600 hover:underline">Terms</a> and{' '}
-          <a href="#" className="text-primary-600 hover:underline">Privacy Policy</a>
-        </p>
+        <div className="auth-card">
+          {/* Header */}
+          <div className="relative px-8 py-10 text-center overflow-hidden gradient-brand">
+            <div className="absolute inset-0 opacity-10"
+              style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+            <div className="relative">
+              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
+                <Car className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-3xl font-black text-white">Welcome Back</h1>
+              <p className="text-white/70 mt-1.5 text-sm">Sign in to continue your journey</p>
+            </div>
+          </div>
+
+          {/* Form */}
+          <div className="px-8 py-8 space-y-5">
+            {/* Role selector */}
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Sign in as</label>
+              <div className="grid grid-cols-3 gap-2">
+                {['Customer', 'Driver', 'Admin'].map(r => (
+                  <button key={r} type="button" onClick={() => setForm(f => ({ ...f, role: r }))}
+                    className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${form.role === r ? 'gradient-brand text-white shadow-lg' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {[
+                { key: 'email', label: 'Email Address', type: 'email', placeholder: 'you@example.com', icon: Mail },
+                { key: 'password', label: 'Password', type: showPwd ? 'text' : 'password', placeholder: '••••••••', icon: Lock },
+              ].map(({ key, label, type, placeholder, icon: Icon }) => (
+                <div key={key}>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">{label}</label>
+                  <div className="relative">
+                    <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-500" />
+                    <input type={type} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                      placeholder={placeholder} autoComplete={key === 'email' ? 'email' : 'current-password'}
+                      className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all" />
+                    {key === 'password' && (
+                      <button type="button" onClick={() => setShowPwd(v => !v)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex justify-end">
+                <Link to="/forgot-password" className="text-xs text-primary-600 font-semibold hover:text-primary-800">Forgot password?</Link>
+              </div>
+
+              <button type="submit" disabled={loading}
+                className="w-full py-4 rounded-xl font-black text-white transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 gradient-brand shadow-lg hover:shadow-xl">
+                {loading
+                  ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <><span>Sign In</span><ArrowRight className="w-4 h-4" /></>}
+              </button>
+            </form>
+
+            <p className="text-center text-sm text-gray-500">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-primary-600 font-bold hover:text-primary-800">Create one free</Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

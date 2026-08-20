@@ -13,11 +13,12 @@ public static class AuthDataSeeder
         var admin = await db.UserAccounts.FirstOrDefaultAsync(u => u.Role == UserRole.Admin);
         if (admin == null)
         {
-            admin = new UserAccount { Email = "admin@riderental.com", Role = UserRole.Admin, IsActive = true };
+            admin = new UserAccount { DisplayName = "Administrator", Email = "admin@riderental.com", Role = UserRole.Admin, IsActive = true };
             db.UserAccounts.Add(admin);
         }
 
         admin.Email = "admin@riderental.com";
+        admin.DisplayName = string.IsNullOrWhiteSpace(admin.DisplayName) ? "Administrator" : admin.DisplayName;
         admin.IsActive = true;
         admin.PasswordHash = hasher.HashPassword(admin, "Admin123!");
         await db.SaveChangesAsync();

@@ -33,4 +33,24 @@ public class AuthController : ControllerBase
             ? Ok(ApiResponse<AuthResponse>.SuccessResponse(result.Data!, result.Message))
             : BadRequest(ApiResponse<AuthResponse>.ErrorResponse(result.Message, result.Errors));
     }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("admin")]
+    public async Task<ActionResult<ApiResponse<object>>> CreateAdmin(CreateAdminRequest request)
+    {
+        var result = await _authService.CreateAdminAsync(request);
+        return result.IsSuccess
+            ? Ok(ApiResponse<object>.SuccessResponse(null!, result.Message))
+            : BadRequest(ApiResponse<object>.ErrorResponse(result.Message, result.Errors));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    public async Task<ActionResult<ApiResponse<object>>> ResetPassword(ResetPasswordRequest request)
+    {
+        var result = await _authService.ResetPasswordAsync(request);
+        return result.IsSuccess
+            ? Ok(ApiResponse<object>.SuccessResponse(null!, result.Message))
+            : BadRequest(ApiResponse<object>.ErrorResponse(result.Message, result.Errors));
+    }
 }
