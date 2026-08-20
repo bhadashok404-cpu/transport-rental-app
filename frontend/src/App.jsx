@@ -7,6 +7,8 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ProfilePage from './pages/ProfilePage';
 import Vehicles from './pages/Vehicles';
 import VehicleDetail from './pages/VehicleDetail';
 import BookingConfirm from './pages/BookingConfirm';
@@ -17,7 +19,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import { useApp } from './context/AppContext';
 
 // Pages that use their own full-screen layout (no shared Navbar/Footer)
-const STANDALONE_PREFIXES = ['/login', '/register', '/driver', '/admin'];
+const STANDALONE_PREFIXES = ['/login', '/register', '/forgot-password', '/profile', '/driver', '/admin'];
 
 function Layout() {
   const { pathname } = useLocation();
@@ -30,6 +32,8 @@ function Layout() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/profile" element={<PrivateOnly><ProfilePage /></PrivateOnly>} />
           <Route path="/driver/*" element={<RoleOnly role="Driver"><DriverDashboard /></RoleOnly>} />
           <Route path="/admin/*" element={<RoleOnly role="Admin"><AdminDashboard /></RoleOnly>} />
         </Routes>
@@ -74,6 +78,11 @@ function RoleOnly({ role, children }) {
   const { user } = useApp();
   if (!user) return <Navigate to="/login" replace />;
   return user.role === role ? children : <Navigate to={user.role === 'Admin' ? '/admin' : user.role === 'Driver' ? '/driver' : '/vehicles'} replace />;
+}
+
+function PrivateOnly({ children }) {
+  const { user } = useApp();
+  return user ? children : <Navigate to="/login" replace />;
 }
 
 function NotFound() {

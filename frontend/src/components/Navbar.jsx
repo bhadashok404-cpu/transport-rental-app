@@ -1,202 +1,214 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import {
-  Car, Menu, X, Bell, User, LogOut, ChevronDown,
-  LayoutDashboard, MapPin
-} from 'lucide-react';
+import { Car, Menu, X, Bell, User, LogOut, ChevronDown, LayoutDashboard, MapPin, Zap } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-const Navbar = () => {
+// Dashboard routes that have a 256px (w-64) sidebar
+const DASHBOARD_PREFIXES = ['/admin', '/driver', '/dashboard', '/profile'];
+
+export default function Navbar() {
   const { user, logout, unreadCount } = useApp();
   const navigate = useNavigate();
-  const location = useLocation();
+  const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef(null);
+  const [userOpen, setUserOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const menuRef = useRef(null);
+
+  const isDashboard = DASHBOARD_PREFIXES.some(p => pathname.startsWith(p));
 
   useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-        setUserMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-    setUserMenuOpen(false);
-  };
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setUserOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
-  const customerNavigation = !user || user.role === 'Customer';
-  const navLinks = customerNavigation ? [
-    { label: 'Home', to: '/' },
-    { label: 'Vehicles', to: '/vehicles' },
-    { label: 'How It Works', to: '/#how-it-works' },
-  ] : [];
-  const homePath = user?.role === 'Admin' ? '/admin' : user?.role === 'Driver' ? '/driver' : '/';
+  const handleLogout = () => { logout(); navigate('/login'); setUserOpen(false); };
 
-  const isActive = (to) => location.pathname === to;
+  const isCustomer = !user || user.role === 'Customer';
+  const navLinks = isCustomer
+    ? [{ label: 'Home', to: '/' }, { label: 'Vehicles', to: '/vehicles' }, { label: 'How It Works', to: '/#how-it-works' }]
+    : [];
+  const dashPath = user?.role === 'Admin' ? '/admin' : user?.role === 'Driver' ? '/driver' : '/dashboard';
+  const activeLink = (to) => pathname === to || (to !== '/' && pathname.startsWith(to));
 
+  // ── Right-side controls (shared) ──────────────────────────────────────────
+  const RightControls = () => (
+    <div className="flex items-center gap-2">
+      {user ? (
+        <>
+          {/* Notification bell */}
+          <Link
+            to={isCustomer ? '/dashboard/notifications' : dashPath}
+            className="relative w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:text-primary-600 hover:bg-primary-50 transition-all duration-200"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-4 h-4 px-0.5 gradient-brand text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </Link>
+
+          {/* User dropdown */}
+          <div ref={menuRef} className="relative">
+            <button
+              onClick={() => setUserOpen(v => !v)}
+              className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl hover:bg-gray-100 transition-all duration-200"
+            >
+              <div className="w-8 h-8 rounded-xl gradient-brand flex items-center justify-center text-white text-xs font-black shadow">
+                {(user.firstName || user.name || user.role || '?')[0].toUpperCase()}
+              </div>
+              <div className="hidden md:block text-left">
+                <p className="text-xs font-bold text-gray-900 leading-none">{user.firstName || user.name || user.role}</p>
+                <p className="text-[10px] text-gray-400 leading-none mt-0.5">{user.role}</p>
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${userOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {userOpen && (
+              <div className="absolute right-0 top-full mt-2 w-56 glass-card rounded-2xl shadow-2xl py-2 animate-slide-down z-50">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="font-bold text-gray-900 text-sm">{user.firstName ? `${user.firstName} ${user.lastName || ''}` : user.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">{user.email}</p>
+                  <span className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold gradient-brand text-white">
+                    <Zap className="w-2.5 h-2.5" />{user.role}
+                  </span>
+                </div>
+                {[
+                  { to: dashPath, icon: LayoutDashboard, label: user.role === 'Admin' ? 'Admin Panel' : user.role === 'Driver' ? 'Driver Portal' : 'Dashboard' },
+                  ...(isCustomer ? [{ to: '/dashboard/bookings', icon: MapPin, label: 'My Bookings' }, { to: '/profile', icon: User, label: 'Profile' }] : []),
+                  ...(!isCustomer ? [{ to: '/profile', icon: User, label: 'My Profile' }] : []),
+                ].map(item => (
+                  <Link key={item.to} to={item.to} onClick={() => setUserOpen(false)}
+                    className="flex items-center gap-3 mx-2 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 transition-all duration-150 font-medium">
+                    <item.icon className="w-4 h-4 text-gray-400" />{item.label}
+                  </Link>
+                ))}
+                <div className="border-t border-gray-100 mt-2 pt-1 mx-2">
+                  <button onClick={handleLogout}
+                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-rose-600 hover:bg-rose-50 transition-all duration-150 font-medium">
+                    <LogOut className="w-4 h-4" />Sign Out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Link to="/login" className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors rounded-lg hover:bg-primary-50">
+            Sign In
+          </Link>
+          <Link to="/register" className="btn-primary px-5 py-2 text-sm rounded-xl">
+            Get Started
+          </Link>
+        </div>
+      )}
+
+      <button
+        className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100 transition"
+        onClick={() => setMobileOpen(v => !v)}
+      >
+        {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+      </button>
+    </div>
+  );
+
+  // ── Dashboard layout navbar (logo aligned to sidebar width) ───────────────
+  if (isDashboard && user) {
+    return (
+      <header className="fixed top-0 inset-x-0 z-50 h-16 bg-white/95 backdrop-blur-lg border-b border-gray-100 shadow-sm">
+        <div className="flex items-center h-full">
+          {/* Logo zone — exactly 256px wide to match the sidebar */}
+          <Link
+            to={dashPath}
+            className="flex items-center gap-3 px-5 shrink-0 group"
+            style={{ width: '256px' }}
+          >
+            <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform shrink-0">
+              <Car className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <span className="font-black text-gray-900 text-sm leading-none block">RideRental</span>
+              <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary-500 mt-0.5 block">
+                {user.role === 'Admin' ? 'Admin Console' : user.role === 'Driver' ? 'Driver Portal' : 'Customer Portal'}
+              </span>
+            </div>
+          </Link>
+
+          {/* Right side — fills remaining space */}
+          <div className="flex-1 flex items-center justify-end pr-6">
+            <RightControls />
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  // ── Public / customer pages navbar ────────────────────────────────────────
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-100">
+    <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-lg shadow-lg shadow-black/5 border-b border-gray-100' : 'bg-white/90 backdrop-blur-md'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link to={homePath} className="flex items-center gap-2 group">
-            <div className="w-9 h-9 bg-linear-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-primary-300 transition-shadow">
+          <Link to={dashPath} className="flex items-center gap-2.5 group shrink-0">
+            <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
               <Car className="w-5 h-5 text-white" />
             </div>
-            <div className="leading-tight">
-              <span className="font-bold text-gray-900 text-lg">RideRental</span>
-              <span className="block text-[10px] text-primary-600 font-medium -mt-0.5 tracking-wide uppercase">Transport</span>
+            <div className="leading-none hidden sm:block">
+              <span className="font-black text-gray-900 text-base tracking-tight">RideRental</span>
+              <span className="block text-[9px] font-bold uppercase tracking-[0.2em] text-primary-500 mt-0.5">Premium Transport</span>
             </div>
           </Link>
 
-          {/* Desktop nav */}
+          {/* Desktop nav links */}
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map(link => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive(link.to)
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
+              <Link key={link.to} to={link.to}
+                className={`relative px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${activeLink(link.to)
+                  ? 'text-primary-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'}`}>
                 {link.label}
+                {activeLink(link.to) && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full gradient-brand" />
+                )}
               </Link>
             ))}
           </nav>
 
-          {/* Right side */}
-          <div className="flex items-center gap-2">
-            {user ? (
-              <>
-                {/* Notifications */}
-                <Link
-                  to={user.role === 'Admin' ? '/admin' : user.role === 'Driver' ? '/driver' : '/dashboard/notifications'}
-                  className="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition"
-                >
-                  <Bell className="w-5 h-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </Link>
-
-                {/* User menu */}
-                <div ref={userMenuRef} className="relative">
-                  <button
-                    onClick={() => setUserMenuOpen(v => !v)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition"
-                  >
-                    <div className="w-8 h-8 bg-linear-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                      {user.firstName?.[0] || user.name?.[0] || user.role?.[0]}{user.lastName?.[0] || user.name?.split(' ')[1]?.[0]}
-                    </div>
-                    <span className="hidden md:block text-sm font-medium text-gray-700">
-                      {user.firstName || user.name || user.role}
-                    </span>
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 animate-slide-down">
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-gray-900">{user.name || `${user.firstName || ''} ${user.lastName || ''}`}</p>
-                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                      </div>
-                      <Link
-                        to={user.role === 'Admin' ? '/admin' : user.role === 'Driver' ? '/driver' : '/dashboard'}
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
-                      >
-                        <LayoutDashboard className="w-4 h-4 text-gray-400" /> {user.role === 'Admin' ? 'Admin Operations' : user.role === 'Driver' ? 'Driver Portal' : 'My Dashboard'}
-                      </Link>
-                      {user.role === 'Customer' && <Link
-                        to="/dashboard/bookings"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
-                      >
-                        <MapPin className="w-4 h-4 text-gray-400" /> My Bookings
-                      </Link>}
-                      {user.role === 'Customer' && <Link
-                        to="/dashboard/profile"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
-                      >
-                        <User className="w-4 h-4 text-gray-400" /> Profile
-                      </Link>}
-                      <div className="border-t border-gray-100 mt-1">
-                        <button
-                          onClick={handleLogout}
-                          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition"
-                        >
-                          <LogOut className="w-4 h-4" /> Sign Out
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/login"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 transition"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition"
-                >
-                  Get Started
-                </Link>
-              </div>
-            )}
-
-            {/* Mobile hamburger */}
-            <button
-              className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition"
-              onClick={() => setMobileOpen(v => !v)}
-            >
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
+          <RightControls />
         </div>
       </div>
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-4 pb-4 animate-slide-down">
-          {navLinks.map(link => (
-            <Link
-              key={link.to}
-              to={link.to}
-              onClick={() => setMobileOpen(false)}
-              className={`block px-4 py-3 rounded-lg text-sm font-medium mt-1 ${
-                isActive(link.to) ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+        <div className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-lg px-4 pb-4 animate-slide-down">
+          <div className="space-y-1 pt-3">
+            {navLinks.map(link => (
+              <Link key={link.to} to={link.to} onClick={() => setMobileOpen(false)}
+                className={`flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition ${activeLink(link.to) ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}>
+                {link.label}
+              </Link>
+            ))}
+          </div>
           {!user && (
-            <div className="flex gap-2 mt-3">
-              <Link to="/login" onClick={() => setMobileOpen(false)} className="flex-1 text-center py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700">Sign In</Link>
-              <Link to="/register" onClick={() => setMobileOpen(false)} className="flex-1 text-center py-2.5 bg-primary-600 text-white rounded-lg text-sm font-semibold">Register</Link>
+            <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+              <Link to="/login" onClick={() => setMobileOpen(false)} className="flex-1 text-center py-3 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-700">Sign In</Link>
+              <Link to="/register" onClick={() => setMobileOpen(false)} className="flex-1 text-center py-3 rounded-xl text-sm font-black text-white btn-primary">Get Started</Link>
             </div>
           )}
         </div>
       )}
     </header>
   );
-};
-
-export default Navbar;
+}

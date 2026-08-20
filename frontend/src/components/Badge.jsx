@@ -21,12 +21,12 @@ const statusColorMap = {
   Refunded:   'purple',
 };
 
-const Badge = ({ text, variant, status, className = '' }) => {
+const Badge = ({ text, variant, status, driverName, className = '' }) => {
   const resolvedVariant = variant || statusColorMap[status] || 'gray';
   const colors = variantMap[resolvedVariant] || variantMap.gray;
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${colors} ${className}`}>
-      {text || status}
+      {text || (status === 'Completed' && driverName ? `Completed by ${driverName}` : status)}
     </span>
   );
 };

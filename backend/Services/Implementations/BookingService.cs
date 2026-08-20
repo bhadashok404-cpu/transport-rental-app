@@ -224,6 +224,9 @@ public class BookingService : IBookingService
         if (booking == null)
             return ServiceResult<BookingDto>.Failure("Booking not found");
 
+        if (booking.Status is not (BookingStatus.Pending or BookingStatus.Confirmed or BookingStatus.DriverAssigned or BookingStatus.InProgress))
+            return ServiceResult<BookingDto>.Failure("Completed or cancelled rides cannot be reassigned");
+
         var driver = await _unitOfWork.Drivers.GetByIdAsync(request.DriverId);
         if (driver == null)
             return ServiceResult<BookingDto>.Failure("Driver not found");
@@ -243,7 +246,8 @@ public class BookingService : IBookingService
         }
 
         booking.DriverId = request.DriverId;
-        booking.Status = BookingStatus.DriverAssigned;
+        if (booking.Status != BookingStatus.InProgress)
+            booking.Status = BookingStatus.DriverAssigned;
         booking.UpdatedAt = DateTime.UtcNow;
 
         var bookingRequests = await _db.RideRequests

@@ -76,6 +76,12 @@ export const AppProvider = ({ children }) => {
     localStorage.removeItem('token');
   };
 
+  const updateUser = (profile) => {
+    const nextUser = { ...user, id: profile.id, customerId: profile.customerId, driverId: profile.driverId, email: profile.email, name: profile.name, role: profile.role, phoneNumber: profile.phoneNumber, address: profile.address };
+    setUser(nextUser);
+    return nextUser;
+  };
+
   // ── Booking cart helpers ───────────────────────────────
   const startBooking = (vehicle, dates) => {
     setBookingCart({ vehicle, ...dates, step: 'review' });
@@ -93,7 +99,7 @@ export const AppProvider = ({ children }) => {
 
   return (
     <AppContext.Provider value={{
-      user, login, register, logout,
+      user, login, register, logout, updateUser,
       bookingCart, startBooking, clearBookingCart,
       notifications, unreadCount, loadNotifications, markNotificationRead,
     }}>
