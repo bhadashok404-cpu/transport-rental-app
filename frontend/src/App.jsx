@@ -4,22 +4,31 @@ import { AppProvider } from './context/AppContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import Home          from './pages/Home';
+import Login         from './pages/Login';
+import Register      from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
-import ProfilePage from './pages/ProfilePage';
-import Vehicles from './pages/Vehicles';
+import ProfilePage   from './pages/ProfilePage';
+import Vehicles      from './pages/Vehicles';
 import VehicleDetail from './pages/VehicleDetail';
 import BookingConfirm from './pages/BookingConfirm';
 import BookingSuccess from './pages/BookingSuccess';
-import Dashboard from './pages/Dashboard';
+import Dashboard     from './pages/Dashboard';
 import DriverDashboard from './pages/DriverDashboard';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminDashboard  from './pages/AdminDashboard';
+
+// ── NEW carpool pages (all public-accessible until "Book" is clicked) ─────────
+import RideSearch    from './pages/RideSearch';
+import RideDetail    from './pages/RideDetail';
+import CarpoolPayment from './pages/CarpoolPayment';
+
 import { useApp } from './context/AppContext';
 
-// Pages that use their own full-screen layout (no shared Navbar/Footer)
-const STANDALONE_PREFIXES = ['/login', '/register', '/forgot-password', '/profile', '/driver', '/admin'];
+// Pages that get only a Navbar — no shared Footer, no outer padding
+const STANDALONE_PREFIXES = [
+  '/login', '/register', '/forgot-password', '/profile',
+  '/driver', '/admin', '/dashboard',
+];
 
 function Layout() {
   const { pathname } = useLocation();
@@ -30,12 +39,13 @@ function Layout() {
       <>
         <Navbar />
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login"          element={<GuestOnly><Login /></GuestOnly>} />
+          <Route path="/register"       element={<GuestOnly><Register /></GuestOnly>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/profile" element={<PrivateOnly><ProfilePage /></PrivateOnly>} />
-          <Route path="/driver/*" element={<RoleOnly role="Driver"><DriverDashboard /></RoleOnly>} />
-          <Route path="/admin/*" element={<RoleOnly role="Admin"><AdminDashboard /></RoleOnly>} />
+          <Route path="/profile"        element={<PrivateOnly><ProfilePage /></PrivateOnly>} />
+          <Route path="/driver/*"       element={<RoleOnly role="Driver"><DriverDashboard /></RoleOnly>} />
+          <Route path="/admin/*"        element={<RoleOnly role="Admin"><AdminDashboard /></RoleOnly>} />
+          <Route path="/dashboard/*"    element={<CustomerOnly><Dashboard /></CustomerOnly>} />
         </Routes>
       </>
     );
@@ -46,12 +56,20 @@ function Layout() {
       <Navbar />
       <main className="flex-1 pt-16">
         <Routes>
-          <Route path="/" element={<HomeEntry />} />
-          <Route path="/vehicles" element={<CustomerOnly><Vehicles /></CustomerOnly>} />
-          <Route path="/vehicles/:id" element={<CustomerOnly><VehicleDetail /></CustomerOnly>} />
-          <Route path="/booking/confirm" element={<CustomerOnly><BookingConfirm /></CustomerOnly>} />
+          {/* Home */}
+          <Route path="/"  element={<HomeEntry />} />
+
+          {/* ── Carpooling (PUBLIC — anyone can browse; auth required only at payment) ── */}
+          <Route path="/rides"             element={<RideSearch />} />
+          <Route path="/rides/:id"         element={<RideDetail />} />
+          <Route path="/carpool/payment"   element={<PrivateOnly><CarpoolPayment /></PrivateOnly>} />
+
+          {/* ── Vehicle rental (customer only) ─────────────────────────────────── */}
+          <Route path="/vehicles"          element={<CustomerOnly><Vehicles /></CustomerOnly>} />
+          <Route path="/vehicles/:id"      element={<CustomerOnly><VehicleDetail /></CustomerOnly>} />
+          <Route path="/booking/confirm"   element={<CustomerOnly><BookingConfirm /></CustomerOnly>} />
           <Route path="/booking/success/:id" element={<CustomerOnly><BookingSuccess /></CustomerOnly>} />
-          <Route path="/dashboard/*" element={<CustomerOnly><Dashboard /></CustomerOnly>} />
+
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -61,15 +79,26 @@ function Layout() {
   );
 }
 
+// ── Route guards ───────────────────────────────────────────────────────────────
+function GuestOnly({ children }) {
+  const { user } = useApp();
+  if (!user) return children;
+  if (user.role === 'Admin')  return <Navigate to="/admin"     replace />;
+  if (user.role === 'Driver') return <Navigate to="/driver"    replace />;
+  return                             <Navigate to="/dashboard" replace />;
+}
+
 function CustomerOnly({ children }) {
   const { user } = useApp();
   if (!user) return <Navigate to="/login" replace />;
-  return user.role === 'Customer' ? children : <Navigate to={user.role === 'Admin' ? '/admin' : '/driver'} replace />;
+  return user.role === 'Customer'
+    ? children
+    : <Navigate to={user.role === 'Admin' ? '/admin' : '/driver'} replace />;
 }
 
 function HomeEntry() {
   const { user } = useApp();
-  if (user?.role === 'Admin') return <Navigate to="/admin" replace />;
+  if (user?.role === 'Admin')  return <Navigate to="/admin"  replace />;
   if (user?.role === 'Driver') return <Navigate to="/driver" replace />;
   return <Home />;
 }
@@ -77,7 +106,9 @@ function HomeEntry() {
 function RoleOnly({ role, children }) {
   const { user } = useApp();
   if (!user) return <Navigate to="/login" replace />;
-  return user.role === role ? children : <Navigate to={user.role === 'Admin' ? '/admin' : user.role === 'Driver' ? '/driver' : '/vehicles'} replace />;
+  return user.role === role
+    ? children
+    : <Navigate to={user.role === 'Admin' ? '/admin' : user.role === 'Driver' ? '/driver' : '/rides'} replace />;
 }
 
 function PrivateOnly({ children }) {
@@ -103,11 +134,17 @@ export default function App() {
     <BrowserRouter>
       <AppProvider>
         <Toaster
-          position="top-right"
+          position="top-center"
           toastOptions={{
-            duration: 3500,
-            style: { borderRadius: '12px', fontSize: '14px', fontWeight: '500' },
-            success: { iconTheme: { primary: '#0ea5e9', secondary: '#fff' } },
+            duration: 4000,
+            style: {
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: '600',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+            },
+            success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
+            error:   { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
           }}
         />
         <Layout />

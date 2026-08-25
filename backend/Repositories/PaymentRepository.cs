@@ -64,8 +64,8 @@ public class PaymentRepository : Repository<Payment>, IPaymentRepository
     {
         return await _dbSet
             .Include(p => p.Customer)
-            .Include(p => p.Booking)
-                .ThenInclude(b => b.Vehicle)
+            .Include(p => p.Booking!)
+                .ThenInclude(b => b!.Vehicle)
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 }

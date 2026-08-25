@@ -18,6 +18,8 @@ public class UnitOfWork : IUnitOfWork
     public ICouponRepository Coupons { get; }
     public INotificationRepository Notifications { get; }
     public IRouteRepository Routes { get; }
+    public IRideOfferRepository RideOffers { get; }
+    public ICarpoolBookingRepository CarpoolBookings { get; }
 
     public UnitOfWork(
         AppDbContext context,
@@ -30,7 +32,9 @@ public class UnitOfWork : IUnitOfWork
         IVehicleCategoryRepository vehicleCategories,
         ICouponRepository coupons,
         INotificationRepository notifications,
-        IRouteRepository routes)
+        IRouteRepository routes,
+        IRideOfferRepository rideOffers,
+        ICarpoolBookingRepository carpoolBookings)
     {
         _context = context;
         Vehicles = vehicles;
@@ -43,6 +47,8 @@ public class UnitOfWork : IUnitOfWork
         Coupons = coupons;
         Notifications = notifications;
         Routes = routes;
+        RideOffers = rideOffers;
+        CarpoolBookings = carpoolBookings;
     }
 
     public async Task<int> SaveChangesAsync()

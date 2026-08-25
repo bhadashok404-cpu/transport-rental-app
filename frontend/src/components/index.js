@@ -9,3 +9,5 @@ export { default as Loader } from './Loader';
 export { default as StarRating } from './StarRating';
 export { default as Pagination } from './Pagination';
 export { default as EmptyState } from './EmptyState';
+export { default as DashShell } from './DashShell';
+export { default as LocationAutocomplete } from './LocationAutocomplete';

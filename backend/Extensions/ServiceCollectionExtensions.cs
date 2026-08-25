@@ -22,6 +22,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICouponRepository, CouponRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IRouteRepository, RouteRepository>();
+        services.AddScoped<IRideOfferRepository, RideOfferRepository>();
+        services.AddScoped<ICarpoolBookingRepository, CarpoolBookingRepository>();
         
         // Register Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -42,6 +44,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICouponService, CouponService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IRideOfferService, RideOfferService>();
+        services.AddScoped<ICarpoolBookingService, CarpoolBookingService>();
         
         return services;
     }

@@ -5,7 +5,7 @@ namespace backend.DTOs.Payment;
 public class PaymentDto
 {
     public int Id { get; set; }
-    public int BookingId { get; set; }
+    public int? BookingId { get; set; }
     public int CustomerId { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public decimal Amount { get; set; }

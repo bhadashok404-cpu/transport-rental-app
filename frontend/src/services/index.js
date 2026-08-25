@@ -11,4 +11,5 @@ export { default as reviewService } from './reviewService';
 export { default as couponService } from './couponService';
 export { default as notificationService } from './notificationService';
 export { default as userService } from './userService';
+export { default as carpoolService } from './carpoolService';
 export { default as api } from './api';

@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   LayoutDashboard, Car, Bell, User, LogOut, ChevronRight,
   TrendingUp, CheckCircle, XCircle, Clock, MapPin, Calendar,
-  Star, Zap, Sparkles, ArrowUpRight
+  Star, Zap, Sparkles, ArrowUpRight, Users, Leaf
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { bookingService } from '../services';
-import { Badge, Loader, EmptyState, StarRating } from '../components';
+import { bookingService, carpoolService } from '../services';
+import { Badge, Loader, EmptyState, StarRating, DashShell } from '../components';
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 function Sidebar() {
@@ -16,10 +16,11 @@ function Sidebar() {
   const { pathname } = useLocation();
 
   const links = [
-    { to: '/dashboard',               label: 'Overview',       icon: LayoutDashboard },
-    { to: '/dashboard/bookings',       label: 'My Bookings',    icon: Car },
-    { to: '/dashboard/notifications',  label: 'Notifications',  icon: Bell, badge: unreadCount },
-    { to: '/profile',                  label: 'Profile',        icon: User },
+    { to: '/dashboard',               label: 'Overview',          icon: LayoutDashboard },
+    { to: '/dashboard/bookings',       label: 'My Bookings',       icon: Car },
+    { to: '/dashboard/carpool',        label: 'Carpool Rides',     icon: Users },
+    { to: '/dashboard/notifications',  label: 'Notifications',     icon: Bell, badge: unreadCount },
+    { to: '/profile',                  label: 'Profile',           icon: User },
   ];
 
   const isActive = (to) => to === '/dashboard' ? pathname === to : pathname.startsWith(to);
@@ -98,6 +99,87 @@ function BookingRow({ booking: b, onClick }) {
   );
 }
 
+// ─── Ride Tracker ─────────────────────────────────────────────────────────────
+function RideTracker({ bookings }) {
+  const navigate = useNavigate();
+  const active = bookings.filter(b =>
+    ['Pending','Confirmed','DriverAssigned','InProgress'].includes(b.status)
+  );
+  if (active.length === 0) return null;
+
+  const STATUS_INFO = {
+    Pending:        { label: 'Waiting for driver',  color: 'bg-amber-500',   icon: '⏳', progress: 10 },
+    Confirmed:      { label: 'Driver confirmed',     color: 'bg-blue-500',    icon: '✓',  progress: 30 },
+    DriverAssigned: { label: 'Driver on the way',    color: 'bg-violet-500',  icon: '🚗', progress: 60 },
+    InProgress:     { label: 'Ride in progress',     color: 'bg-emerald-500', icon: '🟢', progress: 85 },
+  };
+
+  return (
+    <div className="space-y-4">
+      {active.map(b => {
+        const info = STATUS_INFO[b.status] || STATUS_INFO.Pending;
+        return (
+          <div key={b.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className={`${info.color} px-5 py-3 flex items-center justify-between`}>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                <span className="text-white font-black text-sm">{info.icon} {info.label}</span>
+              </div>
+              <span className="text-white/70 text-xs font-semibold">Ride #{b.id}</span>
+            </div>
+
+            <div className="px-5 pt-4 pb-2">
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className={`h-full ${info.color} rounded-full transition-all duration-700`}
+                  style={{ width: `${info.progress}%` }} />
+              </div>
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1 font-medium">
+                <span>Booked</span><span>Assigned</span><span>On Way</span><span>Arrived</span>
+              </div>
+            </div>
+
+            <div className="px-5 py-3 space-y-2">
+              {[{loc: b.pickupLocation, color:'bg-emerald-500'},{loc: b.dropLocation, color:'bg-rose-500'}].map((r,i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <div className={`w-2 h-2 rounded-full ${r.color} mt-1.5 shrink-0`} />
+                  <span className="text-sm text-gray-700 font-medium">{r.loc}</span>
+                </div>
+              ))}
+            </div>
+
+            {(b.driverName || b.driverPhone) && (
+              <div className="mx-5 mb-4 p-3.5 bg-gray-50 rounded-xl flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0 shadow">
+                  {(b.driverName||'D').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900 text-sm">{b.driverName}</p>
+                  {b.driverPhone && <p className="text-xs text-gray-500">📞 {b.driverPhone}</p>}
+                  {b.vehicleInfo && <p className="text-xs text-gray-500">🚗 {b.vehicleInfo}</p>}
+                </div>
+                {b.driverPhone && (
+                  <a href={`tel:${b.driverPhone}`}
+                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-lg transition">
+                    Call
+                  </a>
+                )}
+              </div>
+            )}
+
+            <div className="px-5 pb-4 flex items-center justify-between">
+              <span className="text-lg font-black text-primary-700">₹{b.estimatedPrice}</span>
+              <button onClick={() => navigate(`/dashboard/bookings/${b.id}`)}
+                className="text-xs text-primary-600 font-bold hover:text-primary-800 flex items-center gap-1">
+                View Details <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Overview page ────────────────────────────────────────────────────────────
 function Overview() {
   const { user } = useApp();
@@ -105,16 +187,24 @@ function Overview() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadBookings = useCallback(async () => {
     if (!user?.customerId) { setLoading(false); return; }
-    bookingService.getByCustomer(user.customerId, { pageSize: 50 })
-      .then(r => setBookings(r?.data?.items || r?.data || r?.items || r || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    try {
+      const r = await bookingService.getByCustomer(user.customerId, { pageSize: 100 });
+      setBookings(r?.data?.items || r?.data || r?.items || r || []);
+    } catch { /* silent */ }
+    finally { setLoading(false); }
   }, [user?.customerId]);
 
+  useEffect(() => {
+    loadBookings();
+    // Poll every 10s so ride tracker updates in near real-time
+    const t = setInterval(loadBookings, 10000);
+    return () => clearInterval(t);
+  }, [loadBookings]);
+
   const total     = bookings.length;
-  const active    = bookings.filter(b => ['Confirmed','InProgress'].includes(b.status)).length;
+  const active    = bookings.filter(b => ['Confirmed','DriverAssigned','InProgress'].includes(b.status)).length;
   const completed = bookings.filter(b => b.status === 'Completed').length;
   const cancelled = bookings.filter(b => b.status === 'Cancelled').length;
 
@@ -140,6 +230,16 @@ function Overview() {
         <StatCard label="Completed"    value={completed} icon={CheckCircle} from="from-emerald-500" to="to-emerald-600" />
         <StatCard label="Cancelled"    value={cancelled} icon={XCircle}     from="from-rose-500"    to="to-rose-600" />
       </div>
+
+      {/* Active ride tracker */}
+      {bookings.some(b => ['Pending','Confirmed','DriverAssigned','InProgress'].includes(b.status)) && (
+        <div>
+          <h2 className="font-black text-gray-900 text-lg mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> Live Ride Tracker
+          </h2>
+          <RideTracker bookings={bookings} />
+        </div>
+      )}
 
       {/* Recent bookings */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -360,6 +460,191 @@ function Profile() {
   );
 }
 
+// ─── My Carpool Bookings ──────────────────────────────────────────────────────
+function MyCarpoolBookings() {
+  const { user } = useApp();
+  const navigate = useNavigate();
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('All');
+  const [cancelling, setCancelling] = useState(null);
+
+  const TABS = ['All', 'Confirmed', 'Pending', 'Cancelled'];
+
+  const STATUS_COLOR = {
+    Confirmed: 'badge-success',
+    Pending:   'badge-warning',
+    Cancelled: 'badge-error',
+  };
+
+  const load = useCallback(async () => {
+    if (!user?.customerId) { setLoading(false); return; }
+    try {
+      const res = await carpoolService.getMyBookings();
+      const list = res?.data?.items || res?.data || res?.items || res || [];
+      setBookings(Array.isArray(list) ? list : []);
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }, [user?.customerId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCancel = async (id) => {
+    if (!window.confirm('Cancel this carpool booking?')) return;
+    setCancelling(id);
+    try {
+      await carpoolService.cancelBooking(id);
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'Cancelled' } : b));
+    } catch (err) {
+      const msg = err?.message || 'Could not cancel. Try again.';
+      alert(msg);
+    } finally { setCancelling(null); }
+  };
+
+  const filtered = tab === 'All' ? bookings : bookings.filter(b => b.status === tab);
+
+  return (
+    <div className="page-enter space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900">Carpool Rides</h1>
+          <p className="text-gray-500 text-sm mt-0.5">All your shared ride bookings</p>
+        </div>
+        <button onClick={() => navigate('/rides')}
+          className="btn-primary px-5 py-2.5 text-sm rounded-xl flex items-center gap-2">
+          <Users className="w-4 h-4" /> Find a Ride
+        </button>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex gap-2 flex-wrap">
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200
+              ${tab === t
+                ? 'gradient-brand text-white shadow-lg'
+                : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300 hover:text-primary-700'}`}>
+            {t}
+            {t !== 'All' && (
+              <span className="ml-1.5 opacity-60">
+                ({bookings.filter(b => b.status === t).length})
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      {loading
+        ? <Loader />
+        : filtered.length === 0
+          ? (
+            <EmptyState
+              icon={Users}
+              title="No carpool bookings yet"
+              description="Search for rides and book your first shared seat"
+              actionLabel="Find a Ride"
+              onAction={() => navigate('/rides')}
+            />
+          )
+          : (
+            <div className="space-y-4">
+              {filtered.map(b => (
+                <div key={b.id}
+                  className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+
+                  {/* Status bar */}
+                  <div className={`h-1.5 w-full ${
+                    b.status === 'Confirmed' ? 'bg-emerald-400'
+                    : b.status === 'Pending' ? 'bg-amber-400'
+                    : 'bg-gray-200'
+                  }`} />
+
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      {/* Route + details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="font-black text-gray-900 text-base">
+                            {b.originCity} → {b.destinationCity}
+                          </span>
+                          <span className={`badge ${STATUS_COLOR[b.status] || 'badge-gray'}`}>
+                            {b.status}
+                          </span>
+                        </div>
+
+                        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm text-gray-500">
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-primary-400 shrink-0" />
+                            {new Date(b.departureTime).toLocaleDateString('en-IN', {
+                              weekday: 'short', day: 'numeric', month: 'short',
+                            })} at {new Date(b.departureTime).toLocaleTimeString('en-IN', {
+                              hour: '2-digit', minute: '2-digit', hour12: false,
+                            })}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <Car className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                            {b.driverName}
+                            {b.driverRating > 0 && (
+                              <span className="flex items-center gap-0.5 text-amber-500">
+                                <Star className="w-2.5 h-2.5 fill-amber-400" />
+                                {b.driverRating?.toFixed(1)}
+                              </span>
+                            )}
+                          </span>
+                          {b.vehicleInfo && (
+                            <span className="flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                              {b.vehicleInfo}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5 text-primary-400 shrink-0" />
+                            {b.seatsBooked} seat{b.seatsBooked > 1 ? 's' : ''}
+                          </span>
+                        </div>
+
+                        {/* CO2 hint */}
+                        <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600">
+                          <Leaf className="w-3 h-3" />
+                          <span>Eco-friendly shared ride</span>
+                        </div>
+                      </div>
+
+                      {/* Price + actions */}
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <span className="text-2xl font-black text-primary-700">
+                          ₹{Math.round(b.totalPrice)}
+                        </span>
+                        {b.paymentStatus && (
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                            b.paymentStatus === 'Completed'
+                              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                              : 'bg-amber-50 text-amber-600 border border-amber-100'
+                          }`}>
+                            {b.paymentStatus}
+                          </span>
+                        )}
+                        {['Confirmed', 'Pending'].includes(b.status) && (
+                          <button
+                            disabled={cancelling === b.id}
+                            onClick={() => handleCancel(b.id)}
+                            className="text-xs font-bold text-rose-500 hover:text-rose-700 border border-rose-200 hover:border-rose-300 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50">
+                            {cancelling === b.id ? '…' : 'Cancel'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+    </div>
+  );
+}
+
 // ─── Shell ────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user } = useApp();
@@ -369,22 +654,15 @@ export default function Dashboard() {
   if (!user) return null;
 
   return (
-    <div className="flex min-h-screen pt-16">
-      {/* Sidebar */}
-      <div className="hidden lg:block w-64 fixed left-0 top-16 bottom-0 z-20">
-        <Sidebar />
-      </div>
-
-      {/* Main content */}
-      <main className="flex-1 lg:ml-64 p-6 sm:p-8 bg-slate-50 min-h-screen">
-        <Routes>
-          <Route index        element={<Overview />} />
-          <Route path="bookings"        element={<MyBookings />} />
-          <Route path="bookings/:id"    element={<BookingDetail />} />
-          <Route path="notifications"   element={<Notifications />} />
-          <Route path="profile"         element={<Profile />} />
-        </Routes>
-      </main>
-    </div>
+    <DashShell sidebar={Sidebar}>
+      <Routes>
+        <Route index                 element={<Overview />} />
+        <Route path="bookings"       element={<MyBookings />} />
+        <Route path="bookings/:id"   element={<BookingDetail />} />
+        <Route path="carpool"        element={<MyCarpoolBookings />} />
+        <Route path="notifications"  element={<Notifications />} />
+        <Route path="profile"        element={<Profile />} />
+      </Routes>
+    </DashShell>
   );
 }
