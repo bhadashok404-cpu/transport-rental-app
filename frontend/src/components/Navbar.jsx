@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Car, Menu, X, Bell, User, LogOut, ChevronDown, LayoutDashboard, MapPin, Zap } from 'lucide-react';
+import { Car, Menu, X, Bell, User, LogOut, ChevronDown, LayoutDashboard, MapPin, Zap, Users, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 // Dashboard routes that have a 256px (w-64) sidebar
@@ -34,8 +34,13 @@ export default function Navbar() {
   const handleLogout = () => { logout(); navigate('/login'); setUserOpen(false); };
 
   const isCustomer = !user || user.role === 'Customer';
-  const navLinks = isCustomer
-    ? [{ label: 'Home', to: '/' }, { label: 'Vehicles', to: '/vehicles' }, { label: 'How It Works', to: '/#how-it-works' }]
+  const isDriver   = user?.role === 'Driver';
+  // Nav links — only shown for logged-in customers; guests get CTA buttons on the right instead
+  const navLinks = (user && isCustomer)
+    ? [
+        { label: 'Find a Ride', to: '/rides' },
+        { label: 'Vehicles',    to: '/vehicles' },
+      ]
     : [];
   const dashPath = user?.role === 'Admin' ? '/admin' : user?.role === 'Driver' ? '/driver' : '/dashboard';
   const activeLink = (to) => pathname === to || (to !== '/' && pathname.startsWith(to));
@@ -85,8 +90,17 @@ export default function Navbar() {
                 </div>
                 {[
                   { to: dashPath, icon: LayoutDashboard, label: user.role === 'Admin' ? 'Admin Panel' : user.role === 'Driver' ? 'Driver Portal' : 'Dashboard' },
-                  ...(isCustomer ? [{ to: '/dashboard/bookings', icon: MapPin, label: 'My Bookings' }, { to: '/profile', icon: User, label: 'Profile' }] : []),
-                  ...(!isCustomer ? [{ to: '/profile', icon: User, label: 'My Profile' }] : []),
+                  ...(isCustomer ? [
+                    { to: '/rides',                   icon: Users,          label: 'Find a Ride' },
+                    { to: '/dashboard/carpool',        icon: Users,          label: 'Carpool Bookings' },
+                    { to: '/dashboard/bookings',       icon: MapPin,         label: 'My Bookings' },
+                    { to: '/profile',                  icon: User,           label: 'Profile' },
+                  ] : []),
+                  ...(isDriver ? [
+                    { to: '/driver/rides',             icon: Plus,           label: 'My Ride Offers' },
+                    { to: '/profile',                  icon: User,           label: 'My Profile' },
+                  ] : []),
+                  ...(!isCustomer && !isDriver ? [{ to: '/profile', icon: User, label: 'My Profile' }] : []),
                 ].map(item => (
                   <Link key={item.to} to={item.to} onClick={() => setUserOpen(false)}
                     className="flex items-center gap-3 mx-2 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 transition-all duration-150 font-medium">
@@ -160,8 +174,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
 
-          {/* Logo */}
-          <Link to={dashPath} className="flex items-center gap-2.5 group shrink-0">
+          {/* Logo — always goes to home for guests */}
+          <Link to={user ? dashPath : '/'} className="flex items-center gap-2.5 group shrink-0">
             <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
               <Car className="w-5 h-5 text-white" />
             </div>
@@ -184,6 +198,19 @@ export default function Navbar() {
                 )}
               </Link>
             ))}
+            {/* "Offer a ride" for drivers, "Find a ride" for guests/customers */}
+            {isDriver && (
+              <Link to="/driver/rides"
+                className="flex items-center gap-1.5 ml-2 px-4 py-2 rounded-xl text-sm font-black text-white gradient-brand shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
+                <Plus className="w-3.5 h-3.5" /> Offer a ride
+              </Link>
+            )}
+            {!user && (
+              <Link to="/rides"
+                className="flex items-center gap-1.5 ml-2 px-4 py-2 rounded-xl text-sm font-bold border-2 border-primary-200 text-primary-700 hover:bg-primary-50 transition-all">
+                <Users className="w-3.5 h-3.5" /> Find a ride
+              </Link>
+            )}
           </nav>
 
           <RightControls />

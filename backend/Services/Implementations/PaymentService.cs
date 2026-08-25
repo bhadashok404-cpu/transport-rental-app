@@ -86,7 +86,7 @@ public class PaymentService : IPaymentService
         if (payment.Status != PaymentStatus.Pending)
             return ServiceResult<PaymentDto>.Failure("Payment has already been processed");
 
-        if (payment.Amount < payment.Booking.EstimatedPrice * 0.8m)
+        if (payment.Amount < payment.Booking!.EstimatedPrice * 0.8m)
             return ServiceResult<PaymentDto>.Failure("At least 80% of the booking amount is required before driver acceptance");
 
         payment.TransactionId = request.TransactionId;

@@ -1,10 +1,12 @@
 using backend.DTOs.Booking;
+using backend.DTOs.CarpoolBooking;
 using backend.DTOs.Coupon;
 using backend.DTOs.Customer;
 using backend.DTOs.Driver;
 using backend.DTOs.Notification;
 using backend.DTOs.Payment;
 using backend.DTOs.Review;
+using backend.DTOs.RideOffer;
 using backend.DTOs.Vehicle;
 using backend.DTOs.VehicleCategory;
 using backend.Enums;
@@ -209,6 +211,108 @@ public static class DtoMapper
             IsRead = notification.IsRead,
             BookingId = notification.BookingId,
             CreatedAt = notification.CreatedAt
+        };
+    }
+
+    // RideOffer Mapping — list view (no passengers)
+    public static RideOfferDto ToDto(this RideOffer offer)
+    {
+        return new RideOfferDto
+        {
+            Id = offer.Id,
+            DriverId = offer.DriverId,
+            DriverName = offer.Driver != null
+                ? $"{offer.Driver.FirstName} {offer.Driver.LastName}"
+                : string.Empty,
+            DriverProfileImageUrl = offer.Driver?.ProfileImageUrl,
+            DriverRating = offer.Driver?.Rating ?? 0,
+            DriverTotalTrips = offer.Driver?.TotalTrips ?? 0,
+            DriverIsVerified = offer.Driver?.IsVerified ?? false,
+            VehicleId = offer.VehicleId,
+            VehicleInfo = offer.Vehicle != null
+                ? $"{offer.Vehicle.Make} {offer.Vehicle.Model}"
+                : string.Empty,
+            VehicleType = offer.Vehicle?.VehicleType ?? VehicleType.MiniCab,
+            VehicleImageUrl = offer.Vehicle?.ImageUrl,
+            OriginCity = offer.OriginCity,
+            DestinationCity = offer.DestinationCity,
+            OriginAddress = offer.OriginAddress,
+            DestinationAddress = offer.DestinationAddress,
+            OriginLat = offer.OriginLat,
+            OriginLng = offer.OriginLng,
+            DestinationLat = offer.DestinationLat,
+            DestinationLng = offer.DestinationLng,
+            DepartureTime = offer.DepartureTime,
+            EstimatedDurationMinutes = offer.EstimatedDurationMinutes,
+            EstimatedDistanceKm = offer.EstimatedDistanceKm,
+            TotalSeats = offer.TotalSeats,
+            AvailableSeats = offer.AvailableSeats,
+            PricePerSeat = offer.PricePerSeat,
+            Status = offer.Status,
+            Description = offer.Description,
+            InstantBooking = offer.InstantBooking,
+            SmokingAllowed = offer.SmokingAllowed,
+            PetsAllowed = offer.PetsAllowed,
+            MaxPassengersInBack = offer.MaxPassengersInBack,
+            Passengers = Enumerable.Empty<CarpoolPassengerSummaryDto>(),
+            CreatedAt = offer.CreatedAt
+        };
+    }
+
+    // RideOffer Mapping — detail view (includes confirmed/pending passengers)
+    public static RideOfferDto ToDtoWithPassengers(this RideOffer offer)
+    {
+        var dto = offer.ToDto();
+        dto.Passengers = offer.CarpoolBookings
+            .Where(cb => cb.Status != CarpoolBookingStatus.Cancelled)
+            .Select(cb => new CarpoolPassengerSummaryDto
+            {
+                CarpoolBookingId = cb.Id,
+                CustomerId = cb.CustomerId,
+                CustomerName = cb.Customer != null
+                    ? $"{cb.Customer.FirstName} {cb.Customer.LastName}"
+                    : string.Empty,
+                CustomerProfileImageUrl = cb.Customer?.ProfileImageUrl,
+                SeatsBooked = cb.SeatsBooked,
+                PickupNote = $"{offer.OriginCity} → {offer.DestinationCity}",
+                Status = cb.Status
+            });
+        return dto;
+    }
+
+    // CarpoolBooking Mapping
+    public static CarpoolBookingDto ToDto(this CarpoolBooking cb)
+    {
+        var offer = cb.RideOffer;
+        return new CarpoolBookingDto
+        {
+            Id = cb.Id,
+            RideOfferId = cb.RideOfferId,
+            OriginCity = offer?.OriginCity ?? string.Empty,
+            DestinationCity = offer?.DestinationCity ?? string.Empty,
+            DepartureTime = offer?.DepartureTime ?? default,
+            EstimatedDurationMinutes = offer?.EstimatedDurationMinutes,
+            DriverId = offer?.DriverId ?? 0,
+            DriverName = offer?.Driver != null
+                ? $"{offer.Driver.FirstName} {offer.Driver.LastName}"
+                : string.Empty,
+            DriverPhone = offer?.Driver?.PhoneNumber,
+            DriverRating = offer?.Driver?.Rating ?? 0,
+            VehicleInfo = offer?.Vehicle != null
+                ? $"{offer.Vehicle.Make} {offer.Vehicle.Model}"
+                : string.Empty,
+            CustomerId = cb.CustomerId,
+            CustomerName = cb.Customer != null
+                ? $"{cb.Customer.FirstName} {cb.Customer.LastName}"
+                : string.Empty,
+            SeatsBooked = cb.SeatsBooked,
+            TotalPrice = cb.TotalPrice,
+            Status = cb.Status,
+            CancellationReason = cb.CancellationReason,
+            CancelledAt = cb.CancelledAt,
+            PaymentId = cb.PaymentId,
+            PaymentStatus = cb.Payment?.Status,
+            CreatedAt = cb.CreatedAt
         };
     }
 }

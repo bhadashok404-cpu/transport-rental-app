@@ -12,6 +12,8 @@ public interface IUnitOfWork : IDisposable
     ICouponRepository Coupons { get; }
     INotificationRepository Notifications { get; }
     IRouteRepository Routes { get; }
+    IRideOfferRepository RideOffers { get; }
+    ICarpoolBookingRepository CarpoolBookings { get; }
 
     Task<int> SaveChangesAsync();
     Task BeginTransactionAsync();

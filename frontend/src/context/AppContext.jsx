@@ -10,26 +10,34 @@ export const useApp = () => {
 };
 
 export const AppProvider = ({ children }) => {
-  // ── Auth ──────────────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────────
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('user')) || null; }
     catch { return null; }
   });
 
-  // ── Booking cart (single pending booking) ─────────────
+  // ── Vehicle rental booking cart ────────────────────────────────────────────
   const [bookingCart, setBookingCart] = useState(null);
 
-  // ── Notifications ──────────────────────────────────────
+  // ── Carpool booking cart ───────────────────────────────────────────────────
+  // { ride, seatsBooked, paymentMethod, pendingRedirect: '/rides/:id' }
+  const [carpoolCart, setCarpoolCart] = useState(null);
+
+  // ── Auth modal state (shown when guest clicks "Book" on a ride) ───────────
+  // null | { mode: 'login'|'register', redirectTo: string }
+  const [authModal, setAuthModal] = useState(null);
+
+  // ── Notifications ──────────────────────────────────────────────────────────
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // ── Persist user ───────────────────────────────────────
+  // ── Persist user ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (user) localStorage.setItem('user', JSON.stringify(user));
     else localStorage.removeItem('user');
   }, [user]);
 
-  // ── Load notifications when user is set ───────────────
+  // ── Load notifications when user is set ────────────────────────────────────
   const loadNotifications = useCallback(async () => {
     if (user?.role !== 'Customer' || !user?.customerId) {
       setNotifications([]);
@@ -49,46 +57,92 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => { loadNotifications(); }, [loadNotifications]);
 
-  // ── Auth helpers ───────────────────────────────────────
+  // ── Auth helpers ───────────────────────────────────────────────────────────
   const login = async (email, password, role = 'Customer') => {
     const res = await authService.login({ email, password, role });
     const session = res?.data || res;
     localStorage.setItem('token', session.token);
-    const user = { id: session.userId, customerId: session.customerId, driverId: session.driverId, email: session.email, name: session.fullName, role: session.role };
-    setUser(user);
-    return user;
+    const u = {
+      id: session.userId,
+      customerId: session.customerId,
+      driverId: session.driverId,
+      email: session.email,
+      name: session.fullName,
+      role: session.role,
+    };
+    setUser(u);
+    return u;
   };
 
   const register = async (data) => {
     const res = await authService.register(data);
     const session = res?.data || res;
     localStorage.setItem('token', session.token);
-    const user = { id: session.userId, customerId: session.customerId, driverId: session.driverId, email: session.email, name: session.fullName, role: session.role };
-    setUser(user);
-    return user;
+    const u = {
+      id: session.userId,
+      customerId: session.customerId,
+      driverId: session.driverId,
+      email: session.email,
+      name: session.fullName,
+      role: session.role,
+    };
+    setUser(u);
+    return u;
   };
 
   const logout = () => {
     setUser(null);
     setBookingCart(null);
+    setCarpoolCart(null);
+    setAuthModal(null);
     setNotifications([]);
     setUnreadCount(0);
     localStorage.removeItem('token');
   };
 
   const updateUser = (profile) => {
-    const nextUser = { ...user, id: profile.id, customerId: profile.customerId, driverId: profile.driverId, email: profile.email, name: profile.name, role: profile.role, phoneNumber: profile.phoneNumber, address: profile.address };
+    const nextUser = {
+      ...user,
+      id: profile.id,
+      customerId: profile.customerId,
+      driverId: profile.driverId,
+      email: profile.email,
+      name: profile.name,
+      role: profile.role,
+      phoneNumber: profile.phoneNumber,
+      address: profile.address,
+    };
     setUser(nextUser);
     return nextUser;
   };
 
-  // ── Booking cart helpers ───────────────────────────────
-  const startBooking = (vehicle, dates) => {
-    setBookingCart({ vehicle, ...dates, step: 'review' });
-  };
-
+  // ── Vehicle rental booking cart helpers ────────────────────────────────────
+  const startBooking = (vehicle, dates) => setBookingCart({ vehicle, ...dates, step: 'review' });
   const clearBookingCart = () => setBookingCart(null);
 
+  // ── Carpool booking cart helpers ───────────────────────────────────────────
+  /**
+   * Save the ride + seat selection so we can resume after login.
+   * @param {object} ride        - Full RideOfferDto from the API
+   * @param {number} seatsBooked - How many seats the user wants
+   * @param {string} paymentMethod - e.g. 'UPI', 'Card', 'Cash'
+   */
+  const startCarpoolBooking = (ride, seatsBooked = 1, paymentMethod = 'UPI') => {
+    setCarpoolCart({ ride, seatsBooked, paymentMethod });
+  };
+
+  const clearCarpoolCart = () => setCarpoolCart(null);
+
+  // ── Auth modal helpers ─────────────────────────────────────────────────────
+  /**
+   * Open the auth overlay that appears when a guest tries to book.
+   * @param {'login'|'register'} mode
+   * @param {string} [redirectTo]  - path to navigate after successful auth
+   */
+  const openAuthModal  = (mode = 'login', redirectTo = '/') => setAuthModal({ mode, redirectTo });
+  const closeAuthModal = () => setAuthModal(null);
+
+  // ── Notification helpers ───────────────────────────────────────────────────
   const markNotificationRead = async (id) => {
     try {
       await notificationService.markAsRead(id);
@@ -99,8 +153,15 @@ export const AppProvider = ({ children }) => {
 
   return (
     <AppContext.Provider value={{
+      // auth
       user, login, register, logout, updateUser,
+      // vehicle rental cart
       bookingCart, startBooking, clearBookingCart,
+      // carpool cart
+      carpoolCart, startCarpoolBooking, clearCarpoolCart,
+      // auth modal
+      authModal, openAuthModal, closeAuthModal,
+      // notifications
       notifications, unreadCount, loadNotifications, markNotificationRead,
     }}>
       {children}

@@ -6,8 +6,9 @@ public class Payment
 {
     public int Id { get; set; }
 
-    public int BookingId { get; set; }
-    public Booking Booking { get; set; } = null!;
+    /// <summary>Nullable — carpool payments are not linked to a classic Booking.</summary>
+    public int? BookingId { get; set; }
+    public Booking? Booking { get; set; }
 
     public int CustomerId { get; set; }
     public Customer Customer { get; set; } = null!;

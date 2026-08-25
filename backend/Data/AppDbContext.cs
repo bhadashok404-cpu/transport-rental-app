@@ -23,7 +23,9 @@ public class AppDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<backend.Models.Route> Routes => Set<backend.Models.Route>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
-        public DbSet<RideRequest> RideRequests => Set<RideRequest>();
+    public DbSet<RideRequest> RideRequests => Set<RideRequest>();
+    public DbSet<RideOffer> RideOffers => Set<RideOffer>();
+    public DbSet<CarpoolBooking> CarpoolBookings => Set<CarpoolBooking>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,6 +41,8 @@ public class AppDbContext : DbContext
         ConfigureRoute(modelBuilder);
         ConfigureUserAccount(modelBuilder);
         ConfigureRideRequest(modelBuilder);
+        ConfigureRideOffer(modelBuilder);
+        ConfigureCarpoolBooking(modelBuilder);
         
         SeedData(modelBuilder);
     }
@@ -323,7 +327,8 @@ public class AppDbContext : DbContext
             entity.HasOne(p => p.Booking)
                 .WithMany(b => b.Payments)
                 .HasForeignKey(p => p.BookingId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
         });
     }
 
@@ -465,6 +470,73 @@ public class AppDbContext : DbContext
                 .WithOne(b => b.Route)
                 .HasForeignKey<backend.Models.Route>(r => r.BookingId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureRideOffer(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<RideOffer>(entity =>
+        {
+            entity.HasKey(o => o.Id);
+
+            entity.Property(o => o.OriginCity).IsRequired().HasMaxLength(200);
+            entity.Property(o => o.DestinationCity).IsRequired().HasMaxLength(200);
+            entity.Property(o => o.OriginAddress).HasMaxLength(500);
+            entity.Property(o => o.DestinationAddress).HasMaxLength(500);
+            entity.Property(o => o.PricePerSeat).HasPrecision(18, 2);
+            entity.Property(o => o.EstimatedDistanceKm).HasPrecision(10, 2);
+            entity.Property(o => o.OriginLat).HasPrecision(10, 7);
+            entity.Property(o => o.OriginLng).HasPrecision(11, 7);
+            entity.Property(o => o.DestinationLat).HasPrecision(10, 7);
+            entity.Property(o => o.DestinationLng).HasPrecision(11, 7);
+            entity.Property(o => o.Description).HasMaxLength(1000);
+            entity.Property(o => o.Status).HasConversion<string>();
+
+            entity.HasIndex(o => o.Status);
+            entity.HasIndex(o => o.DepartureTime);
+            entity.HasIndex(o => new { o.OriginCity, o.DestinationCity, o.DepartureTime });
+
+            entity.HasOne(o => o.Driver)
+                .WithMany()
+                .HasForeignKey(o => o.DriverId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(o => o.Vehicle)
+                .WithMany()
+                .HasForeignKey(o => o.VehicleId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureCarpoolBooking(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CarpoolBooking>(entity =>
+        {
+            entity.HasKey(cb => cb.Id);
+
+            entity.Property(cb => cb.TotalPrice).HasPrecision(18, 2);
+            entity.Property(cb => cb.Status).HasConversion<string>();
+            entity.Property(cb => cb.CancellationReason).HasMaxLength(1000);
+
+            entity.HasIndex(cb => cb.Status);
+            entity.HasIndex(cb => new { cb.RideOfferId, cb.CustomerId });
+            entity.HasIndex(cb => new { cb.CustomerId, cb.Status });
+
+            entity.HasOne(cb => cb.RideOffer)
+                .WithMany(o => o.CarpoolBookings)
+                .HasForeignKey(cb => cb.RideOfferId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(cb => cb.Customer)
+                .WithMany()
+                .HasForeignKey(cb => cb.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Payment is optional and not owned by CarpoolBooking — no cascade
+            entity.HasOne(cb => cb.Payment)
+                .WithMany()
+                .HasForeignKey(cb => cb.PaymentId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 

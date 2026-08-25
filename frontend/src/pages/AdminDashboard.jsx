@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Car, Users, ClipboardList, ShieldPlus, LogOut,
@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { bookingService, driverService, vehicleService, userService } from '../services';
 import { useApp } from '../context/AppContext';
-import { Badge, Loader, EmptyState } from '../components';
+import { Badge, Loader, EmptyState, DashShell } from '../components';
 import CreateAdmin from './CreateAdmin';
 import { getVehiclePrimaryImage } from '../utils/carImages';
 import toast from 'react-hot-toast';
@@ -758,8 +758,11 @@ function CreateAdminPage() {
 export default function AdminDashboard() {
   const { user } = useApp();
   const navigate  = useNavigate();
-  const [data, setData]   = useState(null);
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const [newRideAlert, setNewRideAlert]         = useState(false);
+  const [rejectedAlert, setRejectedAlert]       = useState(false);
+  const lastCountRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -770,12 +773,22 @@ export default function AdminDashboard() {
         userService.getDirectory({ pageSize: 200 }),
       ]);
 
-      // Try ride requests (may not exist)
       let rideRequests = [];
       try { rideRequests = listFrom(await bookingService.getAllRideRequests?.()); } catch { /* optional */ }
 
+      const bList = listFrom(bookings);
+
+      // Alert: new ride since last poll
+      if (lastCountRef.current !== null && bList.length > lastCountRef.current) {
+        setNewRideAlert(true);
+      }
+      lastCountRef.current = bList.length;
+
+      // Alert: any rejected ride request
+      setRejectedAlert(rideRequests.some(r => r.status === 'Rejected' || r.status === 2));
+
       setData({
-        bookings:      listFrom(bookings),
+        bookings:      bList,
         drivers:       listFrom(drivers),
         vehicles:      listFrom(vehicles),
         rideRequests,
@@ -791,45 +804,51 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
     load();
-  }, [user, load, navigate]);
+    const timer = setInterval(load, 30000);
+    return () => clearInterval(timer);
+  }, [user, navigate]); // eslint-disable-line
 
   if (loading) return <Loader fullPage />;
   if (!data)   return <Loader fullPage />;
 
   return (
-    <div className="flex min-h-screen pt-16">
-      {/* Fixed sidebar */}
-      <div className="hidden lg:block w-64 fixed left-0 top-16 bottom-0 z-20">
-        <AdminSidebar />
-      </div>
+    <DashShell sidebar={AdminSidebar}>
 
-      {/* Scrollable main */}
-      <main className="flex-1 lg:ml-64 min-h-screen bg-slate-50">
-        {/* Top alert bar if rejected ride requests */}
-        {data.rideRequests.some(r => r.status === 'Rejected' || r.status === 2) && (
-          <div className="bg-linear-to-r from-rose-600 to-rose-700 text-white px-6 py-3 flex items-center gap-3 text-sm font-semibold">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            A driver rejected a ride request. Go to{' '}
-            <button onClick={() => navigate('/admin/rides')} className="underline underline-offset-2 font-black">
-              Ride Operations
-            </button>{' '}
-            to assign another driver.
-          </div>
-        )}
-
-        <div className="p-6 sm:p-8">
-          <Routes>
-            <Route index          element={<Overview    data={data}                    />} />
-            <Route path="rides"   element={<RideOps     data={data} refresh={load}     />} />
-            <Route path="users"   element={<UsersPage   directory={data.userDirectory} />} />
-            <Route path="vehicles"element={<VehiclesPage vehicles={data.vehicles}      />} />
-            <Route path="drivers" element={<DriversPage drivers={data.drivers}         />} />
-            <Route path="create-admin" element={<CreateAdminPage />} />
-            {/* Legacy alias */}
-            <Route path="status"  element={<RideOps     data={data} refresh={load}     />} />
-          </Routes>
+      {/* ── New ride alert ── */}
+      {newRideAlert && (
+        <div className="mb-5 bg-linear-to-r from-primary-600 to-violet-600 text-white px-5 py-3.5 rounded-2xl flex items-center gap-3 text-sm font-semibold shadow-xl animate-slide-down">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse shrink-0" />
+          <span className="flex-1">🚗 New ride request received! A customer just placed a booking.</span>
+          <button onClick={() => { setNewRideAlert(false); navigate('/admin/rides'); }}
+            className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-black transition whitespace-nowrap">
+            View Rides
+          </button>
+          <button onClick={() => setNewRideAlert(false)} className="text-white/60 hover:text-white text-lg leading-none ml-1">×</button>
         </div>
-      </main>
-    </div>
+      )}
+
+      {/* ── Driver rejected alert (only when a driver actually rejected) ── */}
+      {rejectedAlert && (
+        <div className="mb-5 bg-linear-to-r from-rose-600 to-rose-700 text-white px-5 py-3.5 rounded-2xl flex items-center gap-3 text-sm font-semibold shadow-xl">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">A driver rejected a ride request. Please assign another driver.</span>
+          <button onClick={() => { setRejectedAlert(false); navigate('/admin/rides'); }}
+            className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-black transition whitespace-nowrap">
+            Fix Now
+          </button>
+          <button onClick={() => setRejectedAlert(false)} className="text-white/60 hover:text-white text-lg leading-none ml-1">×</button>
+        </div>
+      )}
+
+      <Routes>
+        <Route index           element={<Overview    data={data}                    />} />
+        <Route path="rides"    element={<RideOps     data={data} refresh={load}     />} />
+        <Route path="users"    element={<UsersPage   directory={data.userDirectory} />} />
+        <Route path="vehicles" element={<VehiclesPage vehicles={data.vehicles}      />} />
+        <Route path="drivers"  element={<DriversPage drivers={data.drivers}         />} />
+        <Route path="create-admin" element={<CreateAdminPage />} />
+        <Route path="status"   element={<RideOps     data={data} refresh={load}     />} />
+      </Routes>
+    </DashShell>
   );
 }
