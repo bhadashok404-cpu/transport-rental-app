@@ -52,7 +52,7 @@ function BookingSidebar({ ride, seats, setSeats, onBook, booking }) {
           <div className="flex items-center gap-3">
             <div className="text-center">
               <p className="text-2xl font-black text-white leading-none">{depTime}</p>
-              <p className="text-white/60 text-xs mt-0.5 max-w-[70px] truncate">{ride.originCity}</p>
+              <p className="text-white/60 text-xs mt-0.5 max-w-17.5 truncate">{ride.originCity}</p>
             </div>
             <div className="flex-1 flex flex-col items-center">
               {dur && <p className="text-white/50 text-[10px] font-bold mb-0.5">{dur}</p>}
@@ -60,7 +60,7 @@ function BookingSidebar({ ride, seats, setSeats, onBook, booking }) {
             </div>
             <div className="text-center">
               {arrTime && <p className="text-2xl font-black text-white leading-none">{arrTime}</p>}
-              <p className="text-white/60 text-xs mt-0.5 max-w-[70px] truncate">{ride.destinationCity}</p>
+              <p className="text-white/60 text-xs mt-0.5 max-w-17.5 truncate">{ride.destinationCity}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-3">
@@ -86,7 +86,7 @@ function BookingSidebar({ ride, seats, setSeats, onBook, booking }) {
                 className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition">
                 <Minus className="w-4 h-4 text-gray-700" />
               </button>
-              <span className="text-2xl font-black text-gray-900 min-w-[2rem] text-center">{seats}</span>
+              <span className="text-2xl font-black text-gray-900 min-w-8 text-center">{seats}</span>
               <button onClick={() => setSeats(s => Math.min(ride.availableSeats, s + 1))}
                 className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition">
                 <Plus className="w-4 h-4 text-gray-700" />

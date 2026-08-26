@@ -149,7 +149,7 @@ function RideTracker({ bookings }) {
 
             {(b.driverName || b.driverPhone) && (
               <div className="mx-5 mb-4 p-3.5 bg-gray-50 rounded-xl flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0 shadow">
+                <div className="w-10 h-10 bg-linear-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0 shadow">
                   {(b.driverName||'D').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">

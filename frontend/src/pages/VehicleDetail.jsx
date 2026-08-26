@@ -46,7 +46,7 @@ function ImageGallery({ vehicle }) {
   return (
     <>
       {/* ── Main image ── */}
-      <div className={`relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br ${catGrad}`} style={{ height: 420 }}>
+      <div className={`relative rounded-3xl overflow-hidden shadow-2xl bg-linear-to-br ${catGrad}`} style={{ height: 420 }}>
         {/* Background pattern */}
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
@@ -81,8 +81,8 @@ function ImageGallery({ vehicle }) {
         />
 
         {/* Gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/20 to-transparent pointer-events-none" />
 
         {/* Top-left badge */}
         <div className="absolute top-4 left-4 flex items-center gap-2">
@@ -141,7 +141,7 @@ function ImageGallery({ vehicle }) {
             <img src={src} alt={labels[i]} className="w-full h-full object-cover"
               onError={e => { e.currentTarget.src = FALLBACK; }} />
             <div className={`absolute inset-0 transition-all ${i === active ? 'bg-primary-500/10' : ''}`} />
-            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1">
+            <div className="absolute bottom-0 inset-x-0 bg-linear-to-t from-black/70 to-transparent px-1.5 py-1">
               <p className="text-white text-[9px] font-bold truncate">{labels[i]}</p>
             </div>
           </button>
@@ -189,7 +189,7 @@ function ImageGallery({ vehicle }) {
 // ── Spec badge ────────────────────────────────────────────────────────────────
 function SpecBadge({ icon: Icon, label, value, gradient }) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-4 text-center bg-gradient-to-br ${gradient}`}>
+    <div className={`relative overflow-hidden rounded-2xl p-4 text-center bg-linear-to-br ${gradient}`}>
       <div className="absolute top-0 right-0 w-12 h-12 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
       <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-2 shadow">
         <Icon className="w-4 h-4 text-white" />
@@ -300,7 +300,7 @@ export default function VehicleDetail() {
 
             {/* Why book */}
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className={`px-6 py-4 bg-gradient-to-r ${catGrad}`}>
+              <div className={`px-6 py-4 bg-linear-to-r ${catGrad}`}>
                 <h2 className="text-white font-black flex items-center gap-2">
                   <Sparkles className="w-4 h-4" /> Why Book This Vehicle?
                 </h2>
@@ -358,7 +358,7 @@ export default function VehicleDetail() {
               style={{ boxShadow: '0 25px 60px rgba(37,99,235,0.15), 0 4px 12px rgba(0,0,0,0.1)' }}>
 
               {/* Header */}
-              <div className={`relative overflow-hidden bg-gradient-to-br ${catGrad} px-6 py-5`}>
+              <div className={`relative overflow-hidden bg-linear-to-b ${catGrad} px-6 py-5`}>
                 <div className="absolute inset-0 opacity-10"
                   style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '20px 20px' }} />
                 <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full" />
@@ -454,7 +454,7 @@ export default function VehicleDetail() {
 
                 {/* Price breakdown */}
                 {nights > 0 && (
-                  <div className="bg-gradient-to-br from-primary-50 to-violet-50 rounded-2xl p-4 border border-primary-100/50 space-y-2">
+                  <div className="bg-linear-to-br from-primary-50 to-violet-50 rounded-2xl p-4 border border-primary-100/50 space-y-2">
                     <div className="flex justify-between text-sm text-gray-600 font-medium">
                       <span>₹{vehicle.pricePerDay} × {nights} day{nights > 1 ? 's' : ''}</span>
                       <span className="font-bold">₹{subtotal}</span>
