@@ -153,7 +153,7 @@ function VehicleCard({ vehicle, index, onClick }) {
       style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}
     >
       {/* ── Image area with gradient overlay ── */}
-      <div className={`relative h-52 bg-gradient-to-br ${gradient} overflow-hidden`}>
+      <div className={`relative h-52 bg-linear-to-br ${gradient} overflow-hidden`}>
         {/* Background pattern */}
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '20px 20px' }} />
@@ -175,7 +175,7 @@ function VehicleCard({ vehicle, index, onClick }) {
 
         {/* Gradient overlay on image */}
         {imgLoaded && !imgError && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
         )}
 
         {/* Fallback car icon */}
@@ -254,7 +254,7 @@ function VehicleCard({ vehicle, index, onClick }) {
       </div>
 
       {/* Bottom color accent line */}
-      <div className={`h-1 w-full bg-gradient-to-r ${gradient}`} />
+      <div className={`h-1 w-full bg-linear-to-r ${gradient}`} />
     </div>
   );
 }
