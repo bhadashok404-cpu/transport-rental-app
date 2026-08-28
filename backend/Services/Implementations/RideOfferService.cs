@@ -188,4 +188,17 @@ public class RideOfferService : IRideOfferService
 
         return ServiceResult.Success("Ride offer marked as completed");
     }
+
+    public async Task<ServiceResult<IEnumerable<RideOfferDto>>> GetAllRideOffersAsync()
+    {
+        var offers = await _unitOfWork.RideOffers.GetAllAsync();
+        var detailedOffers = new List<RideOfferDto>();
+        foreach (var o in offers.OrderByDescending(x => x.CreatedAt))
+        {
+            var detailed = await _unitOfWork.RideOffers.GetByIdWithDetailsAsync(o.Id);
+            if (detailed != null)
+                detailedOffers.Add(detailed.ToDtoWithPassengers());
+        }
+        return ServiceResult<IEnumerable<RideOfferDto>>.Success(detailedOffers, "Ride offers retrieved");
+    }
 }

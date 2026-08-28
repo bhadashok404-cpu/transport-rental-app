@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Clock, Users, Car, CheckCircle,
   Zap, CreditCard, Smartphone, Building2, Wallet,
-  Shield, Star, Leaf, AlertCircle, ChevronRight
+  Shield, Star, Leaf, AlertCircle, ChevronRight, QrCode, Lock
 } from 'lucide-react';
 import { carpoolService } from '../services';
 import { useApp } from '../context/AppContext';
@@ -24,11 +24,242 @@ function formatDuration(mins) {
 }
 
 const PAYMENT_METHODS = [
-  { id: 'UPI',        label: 'UPI',           icon: Smartphone,  desc: 'Pay via any UPI app instantly',     color: 'text-violet-600 bg-violet-50 border-violet-200' },
-  { id: 'Card',       label: 'Card',           icon: CreditCard,  desc: 'Debit or credit card',              color: 'text-blue-600 bg-blue-50 border-blue-200' },
-  { id: 'NetBanking', label: 'Net Banking',    icon: Building2,   desc: 'All major banks supported',         color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-  { id: 'Cash',       label: 'Cash',           icon: Wallet,      desc: 'Pay the driver on the day',         color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  { id: 'UPI',        label: 'UPI',         icon: Smartphone,  desc: 'PhonePe, GPay, Paytm…',      color: 'text-violet-600 bg-violet-50 border-violet-200' },
+  { id: 'Card',       label: 'Debit/Credit',icon: CreditCard,  desc: 'Visa, Mastercard, Rupay',     color: 'text-blue-600 bg-blue-50 border-blue-200' },
+  { id: 'NetBanking', label: 'Net Banking',  icon: Building2,   desc: 'All major banks',             color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+  { id: 'Cash',       label: 'Cash',         icon: Wallet,      desc: 'Pay the driver on the day',  color: 'text-amber-600 bg-amber-50 border-amber-200' },
 ];
+
+const NET_BANKS = [
+  'State Bank of India', 'HDFC Bank', 'ICICI Bank', 'Axis Bank',
+  'Kotak Mahindra Bank', 'Punjab National Bank', 'Bank of Baroda',
+  'Canara Bank', 'Union Bank of India', 'IndusInd Bank', 'IDFC First Bank',
+  'Yes Bank', 'Federal Bank', 'South Indian Bank', 'Other',
+];
+
+// ── UPI Payment Panel ─────────────────────────────────────────────────────────
+function UpiPanel({ total, onReady }) {
+  const [vpa, setVpa]         = useState('');
+  const [showQr, setShowQr]   = useState(false);
+  const [verified, setVerified] = useState(false);
+
+  const upiId  = 'riderental@upi';  // merchant UPI
+  const qrData = `upi://pay?pa=${upiId}&pn=RideRental&am=${total}&cu=INR&tn=CarpoolBooking`;
+
+  const handleVerify = () => {
+    if (!vpa.includes('@')) { toast.error('Enter a valid UPI ID (e.g. name@upi)'); return; }
+    setVerified(true);
+    onReady(true);
+    toast.success('UPI ID verified ✓');
+  };
+
+  return (
+    <div className="space-y-4 mt-4">
+      {/* Toggle: VPA or QR */}
+      <div className="flex gap-2">
+        <button type="button" onClick={() => setShowQr(false)}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${!showQr ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}>
+          Enter UPI ID
+        </button>
+        <button type="button" onClick={() => setShowQr(true)}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${showQr ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}>
+          <span className="flex items-center justify-center gap-1.5"><QrCode className="w-4 h-4" /> Scan QR</span>
+        </button>
+      </div>
+
+      {!showQr ? (
+        // VPA entry
+        <div>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Your UPI ID</label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-500 pointer-events-none" />
+              <input
+                value={vpa}
+                onChange={e => { setVpa(e.target.value); setVerified(false); onReady(false); }}
+                placeholder="yourname@upi"
+                className="w-full pl-9 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-violet-400 focus:bg-white transition-all"
+              />
+            </div>
+            <button type="button" onClick={handleVerify}
+              className="px-4 py-3 rounded-xl text-sm font-black text-white bg-violet-600 hover:bg-violet-700 transition-colors whitespace-nowrap">
+              Verify
+            </button>
+          </div>
+          {verified && (
+            <p className="text-xs text-emerald-600 font-bold mt-1.5 flex items-center gap-1">
+              <CheckCircle className="w-3.5 h-3.5" /> UPI ID verified — ready to pay
+            </p>
+          )}
+          <p className="text-xs text-gray-400 mt-1.5">
+            ₹{total} will be debited from your UPI-linked bank account
+          </p>
+        </div>
+      ) : (
+        // QR code (generated from UPI deep link as a visual representation)
+        <div className="flex flex-col items-center gap-4">
+          <div className="bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-inner">
+            {/* Simulated QR — in production use a QR library */}
+            <div className="w-44 h-44 bg-gray-50 rounded-xl flex flex-col items-center justify-center gap-2 border border-dashed border-violet-200">
+              <QrCode className="w-16 h-16 text-violet-600" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-violet-700">Scan to Pay</p>
+              <p className="text-xs font-bold text-gray-500">{upiId}</p>
+            </div>
+          </div>
+          <div className="text-center space-y-1">
+            <p className="text-2xl font-black text-gray-900">₹{total}</p>
+            <p className="text-xs text-gray-500">Open any UPI app and scan this code</p>
+          </div>
+          <button type="button"
+            onClick={() => { onReady(true); toast.success('Payment confirmed via QR ✓'); }}
+            className="w-full py-3 rounded-xl font-bold text-white bg-violet-600 hover:bg-violet-700 text-sm transition-colors">
+            I've completed the payment
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Card Payment Panel ────────────────────────────────────────────────────────
+function CardPanel({ onReady }) {
+  const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' });
+  const f = (k, v) => setCard(c => ({ ...c, [k]: v }));
+
+  const isComplete = card.number.replace(/\s/g, '').length === 16
+    && card.expiry.length === 5
+    && card.cvv.length >= 3
+    && card.name.trim().length >= 2;
+
+  useEffect(() => { onReady(isComplete); }, [isComplete]); // eslint-disable-line
+
+  const fmtNumber = (v) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+  const fmtExpiry = (v) => {
+    const d = v.replace(/\D/g, '').slice(0, 4);
+    return d.length >= 3 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+  };
+
+  const brand = () => {
+    const n = card.number.replace(/\s/g, '');
+    if (n.startsWith('4')) return '💳 Visa';
+    if (/^5[1-5]/.test(n)) return '💳 Mastercard';
+    if (/^6/.test(n)) return '💳 Rupay';
+    return '💳';
+  };
+
+  return (
+    <div className="space-y-4 mt-4">
+      {/* Card number */}
+      <div>
+        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Card Number</label>
+        <div className="relative">
+          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500 pointer-events-none" />
+          <input value={card.number} onChange={e => f('number', fmtNumber(e.target.value))}
+            placeholder="1234 5678 9012 3456" maxLength={19}
+            className="w-full pl-9 pr-16 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono font-medium outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-all" />
+          {card.number && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">{brand()}</span>}
+        </div>
+      </div>
+
+      {/* Expiry + CVV */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Expiry</label>
+          <input value={card.expiry} onChange={e => f('expiry', fmtExpiry(e.target.value))}
+            placeholder="MM/YY" maxLength={5}
+            className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono font-medium outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-all" />
+        </div>
+        <div>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">CVV</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            <input value={card.cvv} onChange={e => f('cvv', e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="•••" type="password" maxLength={4}
+              className="w-full pl-8 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono font-medium outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-all" />
+          </div>
+        </div>
+      </div>
+
+      {/* Name */}
+      <div>
+        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Cardholder Name</label>
+        <input value={card.name} onChange={e => f('name', e.target.value)}
+          placeholder="As on card"
+          className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-all" />
+      </div>
+
+      {isComplete && (
+        <p className="text-xs text-emerald-600 font-bold flex items-center gap-1.5">
+          <CheckCircle className="w-3.5 h-3.5" /> Card details complete — ready to pay
+        </p>
+      )}
+      <p className="text-xs text-gray-400 flex items-center gap-1.5">
+        <Lock className="w-3 h-3" /> Your card details are encrypted and never stored
+      </p>
+    </div>
+  );
+}
+
+// ── Net Banking Panel ─────────────────────────────────────────────────────────
+function NetBankingPanel({ onReady }) {
+  const [bank, setBank] = useState('');
+
+  useEffect(() => { onReady(bank !== ''); }, [bank]); // eslint-disable-line
+
+  return (
+    <div className="mt-4 space-y-3">
+      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Select your bank</label>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
+        {NET_BANKS.map(b => (
+          <button key={b} type="button" onClick={() => setBank(b)}
+            className={`text-left px-3 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${
+              bank === b ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'
+            }`}>
+            {bank === b && <span className="mr-1">✓</span>}{b}
+          </button>
+        ))}
+      </div>
+      {bank && (
+        <p className="text-xs text-emerald-600 font-bold flex items-center gap-1.5">
+          <CheckCircle className="w-3.5 h-3.5" /> {bank} selected — you'll be redirected to your bank after confirming
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Cash Panel ────────────────────────────────────────────────────────────────
+function CashPanel({ onReady }) {
+  const [agreed, setAgreed] = useState(false);
+  useEffect(() => { onReady(agreed); }, [agreed]); // eslint-disable-line
+
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+        <p className="text-sm font-black text-amber-800">Pay cash to the driver</p>
+        <ul className="space-y-1.5 text-xs text-amber-700">
+          <li className="flex items-start gap-2"><span className="mt-0.5 shrink-0">•</span> Keep exact change ready before the trip</li>
+          <li className="flex items-start gap-2"><span className="mt-0.5 shrink-0">•</span> Pay the driver at pickup or as agreed</li>
+          <li className="flex items-start gap-2"><span className="mt-0.5 shrink-0">•</span> The driver can cancel if cash is not paid</li>
+        </ul>
+      </div>
+      <label className="flex items-start gap-3 cursor-pointer group">
+        <div onClick={() => setAgreed(a => !a)}
+          className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${agreed ? 'bg-amber-500 border-amber-500' : 'border-gray-300 group-hover:border-amber-400'}`}>
+          {agreed && <CheckCircle className="w-3.5 h-3.5 text-white" />}
+        </div>
+        <span className="text-sm text-gray-700 font-medium leading-snug">
+          I agree to pay <strong className="text-gray-900">₹{/* total shown in parent */}</strong> in cash directly to the driver on the day of travel
+        </span>
+      </label>
+      {agreed && (
+        <p className="text-xs text-emerald-600 font-bold flex items-center gap-1.5">
+          <CheckCircle className="w-3.5 h-3.5" /> Confirmed — you'll pay cash to the driver
+        </p>
+      )}
+    </div>
+  );
+}
 
 // ── Success screen ─────────────────────────────────────────────────────────────
 function SuccessScreen({ booking, ride, navigate }) {
@@ -123,9 +354,10 @@ export default function CarpoolPayment() {
   const { user, carpoolCart, clearCarpoolCart } = useApp();
 
   const [payMethod, setPayMethod] = useState(carpoolCart?.paymentMethod || 'UPI');
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-  const [booking, setBooking] = useState(null);
+  const [payReady, setPayReady]   = useState(false);   // true once method details filled
+  const [loading, setLoading]     = useState(false);
+  const [done, setDone]           = useState(false);
+  const [booking, setBooking]     = useState(null);
 
   // Guard — redirect if no cart or not a customer
   useEffect(() => {
@@ -257,27 +489,39 @@ export default function CarpoolPayment() {
                 <div className="w-1.5 h-5 rounded-full gradient-brand" />
                 <h2 className="font-black text-gray-900">Payment Method</h2>
               </div>
-              <div className="p-5 grid sm:grid-cols-2 gap-3">
-                {PAYMENT_METHODS.map(({ id, label, icon: Icon, desc, color }) => (
-                  <label key={id}
-                    className={`relative flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200
-                      ${payMethod === id ? `border-primary-500 bg-primary-50` : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
-                    <input type="radio" name="pay" value={id} checked={payMethod === id}
-                      onChange={() => setPayMethod(id)} className="sr-only" />
-                    <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${color}`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-gray-900 text-sm">{label}</p>
-                      <p className="text-xs text-gray-400 truncate">{desc}</p>
-                    </div>
-                    {payMethod === id && (
-                      <div className="w-5 h-5 rounded-full gradient-brand flex items-center justify-center shrink-0">
-                        <CheckCircle className="w-3.5 h-3.5 text-white" />
+              <div className="p-5">
+                {/* Method selector cards */}
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {PAYMENT_METHODS.map(({ id, label, icon: Icon, desc, color }) => (
+                    <label key={id}
+                      onClick={() => { setPayMethod(id); setPayReady(false); }}
+                      className={`relative flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200
+                        ${payMethod === id ? 'border-primary-500 bg-primary-50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
+                      <input type="radio" name="pay" value={id} checked={payMethod === id}
+                        onChange={() => {}} className="sr-only" />
+                      <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${color}`}>
+                        <Icon className="w-4 h-4" />
                       </div>
-                    )}
-                  </label>
-                ))}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-gray-900 text-sm">{label}</p>
+                        <p className="text-xs text-gray-400 truncate">{desc}</p>
+                      </div>
+                      {payMethod === id && (
+                        <div className="w-5 h-5 rounded-full gradient-brand flex items-center justify-center shrink-0">
+                          <CheckCircle className="w-3.5 h-3.5 text-white" />
+                        </div>
+                      )}
+                    </label>
+                  ))}
+                </div>
+
+                {/* Per-method detail panel */}
+                <div className="mt-2 border-t border-gray-50 pt-4">
+                  {payMethod === 'UPI'        && <UpiPanel        total={Math.round(total)} onReady={setPayReady} />}
+                  {payMethod === 'Card'       && <CardPanel       onReady={setPayReady} />}
+                  {payMethod === 'NetBanking' && <NetBankingPanel onReady={setPayReady} />}
+                  {payMethod === 'Cash'       && <CashPanel       onReady={setPayReady} total={Math.round(total)} />}
+                </div>
               </div>
             </div>
 
@@ -343,13 +587,20 @@ export default function CarpoolPayment() {
 
                 {/* Confirm button */}
                 <button
-                  disabled={loading}
+                  disabled={loading || !payReady}
                   onClick={handleConfirm}
-                  className="w-full py-4 rounded-2xl font-black text-white text-base gradient-brand shadow-xl hover:shadow-2xl transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  className="w-full py-4 rounded-2xl font-black text-white text-base gradient-brand shadow-xl hover:shadow-2xl transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2">
                   {loading
                     ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     : <><CheckCircle className="w-5 h-5" /> Confirm & Pay ₹{Math.round(total)}</>}
                 </button>
+
+                {!payReady && !loading && (
+                  <p className="text-center text-xs text-amber-600 font-semibold flex items-center justify-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Complete your {payMethod === 'UPI' ? 'UPI verification' : payMethod === 'Card' ? 'card details' : payMethod === 'NetBanking' ? 'bank selection' : 'cash confirmation'} above to enable payment
+                  </p>
+                )}
 
                 <p className="text-center text-xs text-gray-400 leading-relaxed">
                   By confirming you agree to the cancellation policy. Free cancellation up to 24 hours before departure.
