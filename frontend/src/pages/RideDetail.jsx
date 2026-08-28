@@ -23,7 +23,182 @@ function formatDuration(mins) {
   return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
 }
 
-// ── Sticky booking sidebar ─────────────────────────────────────────────────────
+// ── Car seat map (RedBus style) ───────────────────────────────────────────────
+// Builds a seat layout based on totalSeats and availableSeats.
+// Already-booked passengers get random deterministic gender assignments for demo.
+function SeatMap({ ride, selectedSeats, onToggle }) {
+  const total     = ride.totalSeats     || 4;
+  const available = ride.availableSeats ?? total;
+  const booked    = total - available;
+
+  // Build seat objects — row layout: [driver] + rows of 2+2
+  // Row 0 = driver + front passenger; rows 1-N = 2 left + 2 right
+  const seats = [];
+
+  // Driver seat (not bookable)
+  seats.push({ id: 0, type: 'driver', row: 0, col: 0 });
+  // Front passenger (always available unless booked)
+  seats.push({ id: 1, type: booked >= 1 ? (booked % 3 === 0 ? 'ladies' : booked % 2 === 0 ? 'men' : 'taken') : 'available', row: 0, col: 3 });
+
+  // Rear seats in rows of 4
+  let seatNum = 2;
+  let takenCount = booked >= 2 ? booked - 1 : 0;  // how many rear are booked
+  const rearTotal = total - 1;
+  const rowCount  = Math.ceil(rearTotal / 4);
+
+  for (let r = 0; r < rowCount; r++) {
+    for (let c = 0; c < 4; c++) {
+      if (seatNum > total) break;
+      // assign type based on booking simulation
+      let type = 'available';
+      if (takenCount > 0) {
+        const idx = seatNum - 2;
+        type = idx % 5 === 0 ? 'ladies' : idx % 3 === 0 ? 'men' : 'taken';
+        takenCount--;
+      }
+      seats.push({ id: seatNum, type, row: r + 1, col: c });
+      seatNum++;
+    }
+  }
+
+  const SEAT_STYLE = {
+    driver:    { bg: '#6b7280', label: 'D',  cursor: 'not-allowed', title: 'Driver' },
+    taken:     { bg: '#ef4444', label: '✕',  cursor: 'not-allowed', title: 'Booked' },
+    ladies:    { bg: '#3b82f6', label: '♀',  cursor: 'not-allowed', title: 'Ladies' },
+    men:       { bg: '#8b5cf6', label: '♂',  cursor: 'not-allowed', title: 'Men' },
+    available: { bg: '#ffffff', label: '',   cursor: 'pointer',     title: 'Available' },
+    selected:  { bg: '#2563eb', label: '✓',  cursor: 'pointer',     title: 'Selected' },
+  };
+
+  const rowMap = {};
+  for (const s of seats) {
+    if (!rowMap[s.row]) rowMap[s.row] = [];
+    rowMap[s.row].push(s);
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Legend */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { color: '#ffffff', border: '#d1d5db', label: 'Available' },
+          { color: '#2563eb', border: '#2563eb', label: 'Selected' },
+          { color: '#ef4444', border: '#ef4444', label: 'Taken' },
+          { color: '#3b82f6', border: '#3b82f6', label: 'Ladies' },
+          { color: '#8b5cf6', border: '#8b5cf6', label: 'Men' },
+        ].map(({ color, border, label }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded-sm border" style={{ background: color, borderColor: border }} />
+            <span className="text-[10px] font-semibold text-gray-500">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Car top-view */}
+      <div className="bg-gray-50 rounded-2xl border-2 border-gray-100 p-4 relative">
+        {/* Car outline */}
+        <div className="max-w-[200px] mx-auto">
+          {/* Roof arc */}
+          <div className="h-4 mx-6 rounded-t-full border-2 border-b-0 border-gray-200 bg-gray-100 mb-1" />
+
+          {/* Windshield */}
+          <div className="h-3 mx-4 bg-blue-100 rounded-sm border border-blue-200 mb-2 flex items-center justify-center">
+            <span className="text-[8px] text-blue-400 font-bold">FRONT</span>
+          </div>
+
+          {/* Seat rows */}
+          {Object.keys(rowMap)
+            .sort((a, b) => Number(a) - Number(b))
+            .map(rowIdx => {
+              const rowSeats = rowMap[rowIdx];
+              const isDriverRow = Number(rowIdx) === 0;
+              return (
+                <div key={rowIdx}
+                  className={`flex items-center gap-1 mb-2 ${isDriverRow ? 'justify-between' : 'justify-center gap-2'}`}>
+                  {isDriverRow ? (
+                    <>
+                      {/* Steering wheel side */}
+                      {rowSeats.filter(s => s.col === 0).map(s => (
+                        <SeatButton key={s.id} seat={s} selectedSeats={selectedSeats} onToggle={onToggle} SEAT_STYLE={SEAT_STYLE} />
+                      ))}
+                      {/* Gap (steering wheel space) */}
+                      <div className="flex-1 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-300 text-[8px]">⊙</div>
+                      </div>
+                      {/* Front passenger */}
+                      {rowSeats.filter(s => s.col === 3).map(s => (
+                        <SeatButton key={s.id} seat={s} selectedSeats={selectedSeats} onToggle={onToggle} SEAT_STYLE={SEAT_STYLE} />
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {/* Left pair */}
+                      <div className="flex gap-1">
+                        {rowSeats.filter(s => s.col < 2).map(s => (
+                          <SeatButton key={s.id} seat={s} selectedSeats={selectedSeats} onToggle={onToggle} SEAT_STYLE={SEAT_STYLE} />
+                        ))}
+                      </div>
+                      {/* Aisle */}
+                      <div className="w-4" />
+                      {/* Right pair */}
+                      <div className="flex gap-1">
+                        {rowSeats.filter(s => s.col >= 2).map(s => (
+                          <SeatButton key={s.id} seat={s} selectedSeats={selectedSeats} onToggle={onToggle} SEAT_STYLE={SEAT_STYLE} />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+
+          {/* Rear bumper */}
+          <div className="h-3 mx-4 bg-gray-100 rounded-sm border border-gray-200 mt-1 mb-1 flex items-center justify-center">
+            <span className="text-[8px] text-gray-400 font-bold">REAR</span>
+          </div>
+          <div className="h-4 mx-6 rounded-b-full border-2 border-t-0 border-gray-200 bg-gray-100" />
+        </div>
+      </div>
+
+      {/* Selected info */}
+      <p className="text-xs text-gray-500 text-center">
+        {selectedSeats.length === 0
+          ? 'Tap an available seat to select'
+          : `${selectedSeats.length} seat${selectedSeats.length > 1 ? 's' : ''} selected · ₹${Math.round(selectedSeats.length * ride.pricePerSeat)}`}
+      </p>
+    </div>
+  );
+}
+
+function SeatButton({ seat, selectedSeats, onToggle, SEAT_STYLE }) {
+  const isSelected = selectedSeats.includes(seat.id);
+  const isBookable = seat.type === 'available';
+  const styleKey   = isSelected ? 'selected' : seat.type;
+  const style      = SEAT_STYLE[styleKey] || SEAT_STYLE.available;
+
+  return (
+    <button
+      type="button"
+      title={style.title}
+      disabled={!isBookable}
+      onClick={() => isBookable && onToggle(seat.id)}
+      style={{
+        width: 36, height: 36,
+        background: style.bg,
+        cursor: style.cursor,
+        border: `2px solid ${isSelected ? '#1d4ed8' : isBookable ? '#d1d5db' : style.bg}`,
+        borderRadius: 8,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 12, fontWeight: 900,
+        color: isSelected ? '#fff' : seat.type === 'available' ? '#9ca3af' : '#fff',
+        transition: 'all 0.15s',
+        boxShadow: isSelected ? '0 0 0 3px #bfdbfe' : isBookable ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+      }}
+    >
+      {style.label || (seat.type === 'available' ? seat.id : '')}
+    </button>
+  );
+}
 function BookingSidebar({ ride, seats, setSeats, onBook, booking }) {
   const depTime = formatTime(ride.departureTime);
   const arrTime = ride.estimatedDurationMinutes

@@ -18,6 +18,20 @@ public class RideOffersController : ControllerBase
     }
 
     /// <summary>
+    /// Admin — get all ride offers across all drivers.
+    /// GET /api/ride-offers
+    /// </summary>
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<RideOfferDto>>>> GetAll()
+    {
+        var result = await _rideOfferService.GetAllRideOffersAsync();
+        return result.IsSuccess
+            ? Ok(ApiResponse<IEnumerable<RideOfferDto>>.SuccessResponse(result.Data!, result.Message))
+            : BadRequest(ApiResponse<IEnumerable<RideOfferDto>>.ErrorResponse(result.Message));
+    }
+
+    /// <summary>
     /// Search available rides. Public — no auth required.
     /// GET /api/ride-offers/search?originCity=Pune&amp;destinationCity=Mumbai&amp;date=2026-08-25&amp;passengers=1
     /// </summary>

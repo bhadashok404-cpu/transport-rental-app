@@ -23,4 +23,7 @@ public interface IRideOfferService
 
     /// <summary>Mark a completed trip (called after the trip date has passed).</summary>
     Task<ServiceResult> CompleteRideOfferAsync(int offerId, int requestingDriverId, bool isAdmin = false);
+
+    /// <summary>Admin — get all ride offers across all drivers.</summary>
+    Task<ServiceResult<IEnumerable<RideOfferDto>>> GetAllRideOffersAsync();
 }

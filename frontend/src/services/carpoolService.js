@@ -54,6 +54,14 @@ const carpoolService = {
 
   /** Admin — bookings for any customer. */
   getBookingsByCustomer: (customerId) => api.get(`/carpool-bookings/customer/${customerId}`),
+
+  /** Admin — all ride offers (all drivers, all statuses). */
+  getAllRideOffers: (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.pageSize) q.set('pageSize', params.pageSize);
+    if (params.page)     q.set('page', params.page);
+    return api.get(`/ride-offers?${q.toString()}`);
+  },
 };
 
 export default carpoolService;

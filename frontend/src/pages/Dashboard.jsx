@@ -84,7 +84,7 @@ function BookingRow({ booking: b, onClick }) {
         <Car className="w-6 h-6 text-white" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-gray-900 text-sm">{b.vehicle?.make} {b.vehicle?.model}</p>
+        <p className="font-bold text-gray-900 text-sm">{b.vehicleInfo || `${b.vehicle?.make || ''} ${b.vehicle?.model || ''}`.trim() || 'Vehicle'}</p>
         <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
           <Calendar className="w-3 h-3" />
           {new Date(b.pickupDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -347,12 +347,11 @@ function BookingDetail() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-50">
         {[
-          { icon: Car,      label: 'Vehicle',     value: `${booking.vehicle?.make} ${booking.vehicle?.model} (${booking.vehicle?.vehicleType})` },
+          { icon: Car,      label: 'Vehicle',     value: booking.vehicleInfo ? `${booking.vehicleInfo}${booking.vehicleRegistration ? ' · ' + booking.vehicleRegistration : ''}` : '—' },
           { icon: MapPin,   label: 'Pickup',      value: booking.pickupLocation },
           { icon: MapPin,   label: 'Drop',        value: booking.dropLocation },
           { icon: Calendar, label: 'Pickup Date', value: new Date(booking.pickupDate).toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) },
           ...(booking.returnDate ? [{ icon: Calendar, label: 'Return Date', value: new Date(booking.returnDate).toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) }] : []),
-          ...(booking.driver ? [{ icon: Star, label: 'Driver', value: `${booking.driver.firstName} ${booking.driver.lastName} · ⭐ ${booking.driver.rating}` }] : []),
         ].map(({ icon: Icon, label, value }) => (
           <div key={label} className="flex items-start gap-4 px-6 py-4">
             <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center shrink-0 mt-0.5">
@@ -364,6 +363,39 @@ function BookingDetail() {
             </div>
           </div>
         ))}
+
+        {/* Driver card — shown once a driver is assigned */}
+        {booking.driverName && (
+          <div className="px-6 py-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Driver Details</p>
+            <div className="flex items-center gap-4 bg-gradient-to-r from-primary-50 to-violet-50 rounded-2xl p-4 border border-primary-100">
+              <div className="w-12 h-12 rounded-2xl gradient-brand flex items-center justify-center text-white font-black text-lg shadow-lg shrink-0">
+                {booking.driverName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-gray-900">{booking.driverName}</p>
+                {booking.driverPhone && (
+                  <a href={`tel:${booking.driverPhone}`}
+                    className="text-sm text-primary-600 font-semibold hover:text-primary-800 transition-colors flex items-center gap-1.5 mt-0.5">
+                    📞 {booking.driverPhone}
+                  </a>
+                )}
+                {booking.vehicleRegistration && (
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
+                    🚗 {booking.vehicleInfo} &nbsp;·&nbsp;
+                    <span className="font-black text-gray-700 tracking-widest">{booking.vehicleRegistration}</span>
+                  </p>
+                )}
+              </div>
+              <div className="shrink-0">
+                <span className="text-xs font-black text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-full">
+                  ✓ Assigned
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between px-6 py-5">
           <span className="font-black text-lg text-gray-900">Total Amount</span>
           <span className="text-2xl font-black text-primary-700">₹{booking.actualPrice || booking.estimatedPrice}</span>

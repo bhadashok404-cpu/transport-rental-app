@@ -2,13 +2,13 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Car, Users, ClipboardList, ShieldPlus, LogOut,
-  TrendingUp, ChevronRight, Search, RefreshCw, CheckCircle,
+  TrendingUp, ChevronRight, ChevronDown, Search, RefreshCw, CheckCircle,
   XCircle, Clock, Zap, Star, AlertCircle, UserCog, Truck,
   DollarSign, BarChart2, Activity, MapPin, Calendar,
-  MoreVertical, ChevronDown, Filter, Eye, Settings, Bell,
-  ArrowUpRight, ArrowDownRight, Sparkles
+  MoreVertical, Filter, Eye, Settings, Bell,
+  ArrowUpRight, ArrowDownRight, Sparkles, Route as RouteIcon
 } from 'lucide-react';
-import { bookingService, driverService, vehicleService, userService } from '../services';
+import { bookingService, driverService, vehicleService, userService, carpoolService } from '../services';
 import { useApp } from '../context/AppContext';
 import { Badge, Loader, EmptyState, DashShell } from '../components';
 import CreateAdmin from './CreateAdmin';
@@ -49,12 +49,13 @@ function AdminSidebar() {
   const { pathname } = useLocation();
 
   const NAV = [
-    { to: '/admin',         label: 'Overview',       icon: LayoutDashboard, exact: true },
-    { to: '/admin/rides',   label: 'Ride Operations',icon: ClipboardList },
-    { to: '/admin/users',   label: 'All Users',      icon: Users },
-    { to: '/admin/vehicles',label: 'Vehicles',       icon: Car },
-    { to: '/admin/drivers', label: 'Drivers',        icon: Truck },
-    { to: '/admin/create-admin', label: 'Create Admin', icon: ShieldPlus },
+    { to: '/admin',              label: 'Overview',        icon: LayoutDashboard, exact: true },
+    { to: '/admin/rides',        label: 'Ride Operations', icon: ClipboardList },
+    { to: '/admin/carpool',      label: 'Carpool Rides',   icon: RouteIcon },
+    { to: '/admin/users',        label: 'All Users',       icon: Users },
+    { to: '/admin/vehicles',     label: 'Vehicles',        icon: Car },
+    { to: '/admin/drivers',      label: 'Drivers',         icon: Truck },
+    { to: '/admin/create-admin', label: 'Create Admin',    icon: ShieldPlus },
   ];
 
   const active = ({ to, exact }) => exact ? pathname === to : pathname.startsWith(to) && to !== '/admin';
@@ -289,22 +290,94 @@ function Overview({ data }) {
 }
 
 // ─── RIDE OPERATIONS PAGE ──────────────────────────────────────────────────────
+// ─── RIDE STATUS META ─────────────────────────────────────────────────────────
+const RIDE_STATUS_META = {
+  Pending:        { color: 'bg-amber-400',   row: 'bg-amber-50/60',   text: 'text-amber-800',   border: 'border-l-amber-400',   icon: '⏳', label: 'Awaiting driver',    progress: 10 },
+  Confirmed:      { color: 'bg-blue-500',    row: 'bg-blue-50/50',    text: 'text-blue-800',    border: 'border-l-blue-400',    icon: '✓',  label: 'Driver confirmed',   progress: 30 },
+  DriverAssigned: { color: 'bg-violet-500',  row: 'bg-violet-50/50',  text: 'text-violet-800',  border: 'border-l-violet-400',  icon: '🚗', label: 'Driver on the way',  progress: 55 },
+  InProgress:     { color: 'bg-emerald-500', row: 'bg-emerald-50/50', text: 'text-emerald-800', border: 'border-l-emerald-400', icon: '🟢', label: 'Ride in progress',   progress: 80 },
+  Completed:      { color: 'bg-gray-400',    row: '',                 text: 'text-gray-600',    border: 'border-l-gray-300',    icon: '✅', label: 'Completed',          progress: 100 },
+  Cancelled:      { color: 'bg-rose-400',    row: 'bg-rose-50/30',    text: 'text-rose-700',    border: 'border-l-rose-300',    icon: '✕',  label: 'Cancelled',          progress: 0 },
+};
+
+// Timeline steps
+const TIMELINE_STEPS = [
+  { key: 'Pending',        label: 'Booked',          icon: '📋' },
+  { key: 'Confirmed',      label: 'Confirmed',        icon: '✓' },
+  { key: 'DriverAssigned', label: 'Driver Assigned',  icon: '👤' },
+  { key: 'InProgress',     label: 'On the Way',       icon: '🚗' },
+  { key: 'Completed',      label: 'Completed',        icon: '🏁' },
+];
+const STEP_ORDER = { Pending: 0, Confirmed: 1, DriverAssigned: 2, InProgress: 3, Completed: 4, Cancelled: -1 };
+
+function RideTimeline({ booking }) {
+  const currentStep = STEP_ORDER[booking.status] ?? 0;
+  const isCancelled = booking.status === 'Cancelled';
+  return (
+    <div className="px-4 pb-4 pt-2">
+      {isCancelled ? (
+        <div className="flex items-center gap-2 text-rose-600 text-xs font-bold bg-rose-50 rounded-xl px-3 py-2 border border-rose-200">
+          ✕ Ride cancelled {booking.cancellationReason ? `· ${booking.cancellationReason}` : ''}
+        </div>
+      ) : (
+        <div className="relative">
+          {/* Track line */}
+          <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-100" />
+          <div
+            className="absolute top-4 left-4 h-0.5 bg-primary-500 transition-all duration-700"
+            style={{ width: `${currentStep > 0 ? (currentStep / (TIMELINE_STEPS.length - 1)) * (100 - 0) : 0}%` }}
+          />
+          <div className="relative flex justify-between">
+            {TIMELINE_STEPS.map((step, i) => {
+              const done = i < currentStep;
+              const active = i === currentStep;
+              return (
+                <div key={step.key} className="flex flex-col items-center gap-1" style={{ minWidth: 44 }}>
+                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm transition-all
+                    ${active ? 'border-primary-500 bg-primary-500 text-white shadow-lg shadow-primary-200 scale-110'
+                      : done  ? 'border-primary-400 bg-primary-100 text-primary-600'
+                      : 'border-gray-200 bg-white text-gray-300'}`}>
+                    {active ? <span className="w-2 h-2 bg-white rounded-full animate-pulse" /> : step.icon}
+                  </div>
+                  <p className={`text-[9px] font-bold text-center leading-tight max-w-10 ${active ? 'text-primary-700' : done ? 'text-gray-600' : 'text-gray-300'}`}>
+                    {step.label}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RideOps({ data, refresh }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [assigning, setAssigning] = useState(null);
+  const [expanded, setExpanded] = useState(null);  // booking id with open timeline
 
-  const statuses = ['All','Pending','Confirmed','InProgress','Completed','Cancelled'];
+  const statuses = ['All','Pending','Confirmed','DriverAssigned','InProgress','Completed','Cancelled'];
+  const activeCount = data.bookings.filter(b => ['Pending','Confirmed','DriverAssigned','InProgress'].includes(b.status)).length;
 
   const drivers = data.drivers.filter(d => d.isActive);
 
   const allBookings = data.bookings;
-  const filtered = allBookings.filter(b => {
-    const matchStatus = statusFilter === 'All' || b.status === statusFilter;
-    const q = search.trim().toLowerCase();
-    const matchSearch = !q || `${b.id} ${b.pickupLocation} ${b.dropLocation} ${b.customerName||''} ${b.driverName||''}`.toLowerCase().includes(q);
-    return matchStatus && matchSearch;
-  });
+  const filtered = allBookings
+    .sort((a, b) => {
+      // Active rides first, then by date desc
+      const aLive = ['Pending','Confirmed','DriverAssigned','InProgress'].includes(a.status);
+      const bLive = ['Pending','Confirmed','DriverAssigned','InProgress'].includes(b.status);
+      if (aLive !== bLive) return aLive ? -1 : 1;
+      return new Date(b.createdAt || b.pickupDate) - new Date(a.createdAt || a.pickupDate);
+    })
+    .filter(b => {
+      const matchStatus = statusFilter === 'All' || b.status === statusFilter;
+      const q = search.trim().toLowerCase();
+      const matchSearch = !q || `${b.id} ${b.pickupLocation} ${b.dropLocation} ${b.customerName||''} ${b.driverName||''} ${b.vehicleInfo||''}`.toLowerCase().includes(q);
+      return matchStatus && matchSearch;
+    });
 
   const assign = async (bookingId, driverId) => {
     if (!driverId) return;
@@ -318,12 +391,13 @@ function RideOps({ data, refresh }) {
   };
 
   const canAssign = s => ['Pending','Confirmed','DriverAssigned','InProgress'].includes(s);
+  const isLive    = s => ['Pending','Confirmed','DriverAssigned','InProgress'].includes(s);
 
   return (
     <div className="page-enter space-y-6">
       <PageHeader
         title="Ride Operations"
-        subtitle={`${filtered.length} rides · Assign drivers, track status, manage fleet.`}
+        subtitle={`${filtered.length} rides · ${activeCount} live right now`}
         action={
           <button onClick={refresh} className="btn-ghost flex items-center gap-2 text-sm px-4 py-2 rounded-xl">
             <RefreshCw className="w-4 h-4" /> Refresh
@@ -331,21 +405,38 @@ function RideOps({ data, refresh }) {
         }
       />
 
+      {/* Live rides banner */}
+      {activeCount > 0 && (
+        <div className="gradient-brand rounded-2xl px-5 py-3.5 flex items-center gap-3 shadow-lg">
+          <span className="w-2.5 h-2.5 bg-white rounded-full animate-pulse shrink-0" />
+          <span className="text-white font-bold text-sm flex-1">
+            {activeCount} active ride{activeCount !== 1 ? 's' : ''} in progress — auto-refreshing every 30s
+          </span>
+          <span className="text-white/60 text-xs">Live</span>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-52">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search rides, customers, drivers…"
+            placeholder="Search rides, customers, drivers, vehicles…"
             className="input-field pl-10 rounded-xl py-2.5 text-sm" />
         </div>
         <div className="flex gap-2 flex-wrap">
-          {statuses.map(s => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${statusFilter === s ? 'gradient-brand text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-              {s}
-            </button>
-          ))}
+          {statuses.map(s => {
+            const meta = RIDE_STATUS_META[s];
+            return (
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                  statusFilter === s ? 'gradient-brand text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}>
+                {meta && <span className={`w-2 h-2 rounded-full ${meta.color}`} />}
+                {s}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -354,48 +445,149 @@ function RideOps({ data, refresh }) {
         {filtered.length === 0
           ? <EmptyState icon={ClipboardList} title="No rides found" description="Try a different filter." />
           : <div className="overflow-x-auto">
-              <table className="table-premium">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr>
-                    <th>Ride</th>
-                    <th>Route</th>
-                    <th>Customer</th>
-                    <th>Status</th>
-                    <th>Amount</th>
-                    <th>Driver</th>
-                    <th>Date</th>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    {['', 'Ride', 'Route', 'Customer', 'Vehicle', 'Status', 'Amount', 'Driver', 'Date', ''].map((h, i) => (
+                      <th key={i} className="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-gray-500 whitespace-nowrap">{h}</th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {filtered.map(b => (
-                    <tr key={b.id}>
-                      <td>
-                        <div className="flex items-center gap-2.5">
-                          <div className={`w-2 h-2 rounded-full ${STATUS_DOT[b.status]||'bg-gray-300'}`} />
-                          <span className="font-black text-gray-900 text-sm">#{b.id}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <p className="text-sm font-semibold text-gray-800 max-w-48 truncate">{b.pickupLocation}</p>
-                        <p className="text-xs text-gray-400 flex items-center gap-1"><MapPin className="w-3 h-3" />{b.dropLocation}</p>
-                      </td>
-                      <td><span className="text-sm text-gray-700 font-medium">{b.customerName || '—'}</span></td>
-                      <td><Badge status={b.status} /></td>
-                      <td><span className="font-black text-gray-900">₹{b.estimatedPrice||0}</span></td>
-                      <td>
-                        {canAssign(b.status)
-                          ? <select disabled={assigning === b.id} value={b.driverId||''}
-                              onChange={e => assign(b.id, e.target.value)}
-                              className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 bg-white min-w-36 font-medium">
-                              <option value="">Assign driver</option>
-                              {drivers.map(d => <option key={d.id} value={d.id}>{d.firstName} {d.lastName} · {d.status}</option>)}
-                            </select>
-                          : <span className="text-xs text-gray-500 font-medium">{b.driverName || '—'}</span>}
-                        {assigning === b.id && <span className="ml-2 w-3 h-3 border border-primary-400 border-t-transparent rounded-full animate-spin inline-block" />}
-                      </td>
-                      <td><span className="text-xs text-gray-400">{new Date(b.createdAt||b.pickupDate).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span></td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-gray-50">
+                  {filtered.map(b => {
+                    const meta = RIDE_STATUS_META[b.status] || RIDE_STATUS_META.Pending;
+                    const live = isLive(b.status);
+                    const isExpanded = expanded === b.id;
+                    return (
+                      <>
+                        <tr key={b.id}
+                          className={`border-l-4 transition-colors ${meta.border} ${meta.row} hover:brightness-95`}>
+                          {/* Live pulse */}
+                          <td className="pl-3 pr-1 py-3.5">
+                            {live && (
+                              <span className="relative flex w-3 h-3">
+                                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${meta.color}`} />
+                                <span className={`relative inline-flex rounded-full w-3 h-3 ${meta.color}`} />
+                              </span>
+                            )}
+                          </td>
+                          {/* ID */}
+                          <td className="px-3 py-3.5">
+                            <span className="font-black text-gray-900">#{b.id}</span>
+                          </td>
+                          {/* Route */}
+                          <td className="px-3 py-3.5">
+                            <p className="text-sm font-semibold text-gray-800 max-w-40 truncate">{b.pickupLocation}</p>
+                            <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3 shrink-0" />{b.dropLocation}
+                            </p>
+                          </td>
+                          {/* Customer */}
+                          <td className="px-3 py-3.5">
+                            <p className="text-sm font-semibold text-gray-700">{b.customerName || '—'}</p>
+                            {b.customerPhone && <p className="text-xs text-gray-400">{b.customerPhone}</p>}
+                          </td>
+                          {/* Vehicle */}
+                          <td className="px-3 py-3.5">
+                            {b.vehicleInfo ? (
+                              <div>
+                                <p className="text-sm font-semibold text-gray-800">{b.vehicleInfo}</p>
+                                {b.vehicleRegistration && (
+                                  <p className="text-[10px] font-black text-gray-400 tracking-widest mt-0.5">{b.vehicleRegistration}</p>
+                                )}
+                              </div>
+                            ) : <span className="text-xs text-gray-400">—</span>}
+                          </td>
+                          {/* Status */}
+                          <td className="px-3 py-3.5">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black ${meta.row} ${meta.text} border border-current/20`}>
+                              <span>{meta.icon}</span> {b.status}
+                            </span>
+                          </td>
+                          {/* Amount */}
+                          <td className="px-3 py-3.5">
+                            <span className="font-black text-gray-900">₹{b.estimatedPrice || 0}</span>
+                          </td>
+                          {/* Driver */}
+                          <td className="px-3 py-3.5">
+                            {canAssign(b.status)
+                              ? (
+                                <div className="flex items-center gap-2">
+                                  <select disabled={assigning === b.id} value={b.driverId || ''}
+                                    onChange={e => assign(b.id, e.target.value)}
+                                    className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 bg-white min-w-36 font-medium">
+                                    <option value="">Assign driver</option>
+                                    {drivers.map(d => (
+                                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} · {d.status}</option>
+                                    ))}
+                                  </select>
+                                  {assigning === b.id && (
+                                    <span className="w-3 h-3 border border-primary-400 border-t-transparent rounded-full animate-spin" />
+                                  )}
+                                </div>
+                              )
+                              : (
+                                <div>
+                                  {b.driverName ? (
+                                    <>
+                                      <p className="text-sm font-semibold text-gray-700">{b.driverName}</p>
+                                      {b.driverPhone && <p className="text-xs text-gray-400">{b.driverPhone}</p>}
+                                    </>
+                                  ) : <span className="text-xs text-gray-400">Not assigned</span>}
+                                </div>
+                              )}
+                          </td>
+                          {/* Date */}
+                          <td className="px-3 py-3.5 whitespace-nowrap">
+                            <p className="text-xs font-semibold text-gray-600">
+                              {new Date(b.pickupDate || b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              {new Date(b.pickupDate || b.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                            </p>
+                          </td>
+                          {/* Expand toggle */}
+                          <td className="pr-4 pl-1 py-3.5">
+                            <button
+                              onClick={() => setExpanded(isExpanded ? null : b.id)}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all text-xs ${isExpanded ? 'bg-primary-100 text-primary-600 rotate-180' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                              <ChevronDown className="w-4 h-4 transition-transform" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none' }} />
+                            </button>
+                          </td>
+                        </tr>
+                        {/* Expandable timeline row */}
+                        {isExpanded && (
+                          <tr key={`${b.id}-timeline`} className={meta.row}>
+                            <td colSpan={10} className="px-4 pb-4 pt-0">
+                              <div className="bg-white/80 rounded-2xl border border-gray-100 overflow-hidden">
+                                <div className="px-4 pt-3 pb-1 border-b border-gray-50 flex items-center justify-between">
+                                  <p className="text-xs font-black uppercase tracking-widest text-gray-500">Live Ride Tracking</p>
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meta.text} ${meta.row}`}>
+                                    {meta.icon} {meta.label}
+                                  </span>
+                                </div>
+                                <RideTimeline booking={b} />
+                                {/* Extra details */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 pb-4">
+                                  {[
+                                    { l: 'Customer',   v: b.customerName || '—' },
+                                    { l: 'Driver',     v: b.driverName || 'Not assigned' },
+                                    { l: 'Vehicle',    v: b.vehicleInfo ? `${b.vehicleInfo}${b.vehicleRegistration ? ' · ' + b.vehicleRegistration : ''}` : '—' },
+                                    { l: 'Amount',     v: `₹${b.estimatedPrice || 0}` },
+                                  ].map(({ l, v }) => (
+                                    <div key={l} className="bg-gray-50 rounded-xl px-3 py-2.5">
+                                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">{l}</p>
+                                      <p className="text-sm font-bold text-gray-900 truncate">{v}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>}
@@ -739,6 +931,239 @@ function DriversPage({ drivers }) {
   );
 }
 
+// ─── CARPOOL RIDES PAGE (Admin) ────────────────────────────────────────────────
+function CarpoolRidesPage() {
+  const [offers, setOffers]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter]   = useState('All');     // All | Active | Full | Completed | Cancelled
+  const [query, setQuery]     = useState('');
+  const [acting, setActing]   = useState(null);       // id of offer being acted on
+
+  const load = useCallback(async () => {
+    try {
+      const res = await carpoolService.getAllRideOffers({ pageSize: 200 });
+      const list = res?.data?.items || res?.data || res?.items || res || [];
+      setOffers(Array.isArray(list) ? list : []);
+    } catch {
+      toast.error('Failed to load carpool rides');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = offers.filter(o => {
+    if (filter !== 'All' && o.status !== filter) return false;
+    if (query) {
+      const q = query.toLowerCase();
+      return (
+        o.originCity?.toLowerCase().includes(q) ||
+        o.destinationCity?.toLowerCase().includes(q) ||
+        o.driverName?.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
+  const handleCancel = async (id) => {
+    if (!window.confirm('Cancel this ride offer? All passenger bookings will also be cancelled.')) return;
+    setActing(id);
+    try {
+      await carpoolService.cancelRide(id);
+      toast.success('Ride offer cancelled');
+      setOffers(prev => prev.map(o => o.id === id ? { ...o, status: 'Cancelled' } : o));
+    } catch (err) {
+      toast.error(err?.message || 'Could not cancel');
+    } finally { setActing(null); }
+  };
+
+  const handleComplete = async (id) => {
+    if (!window.confirm('Mark this ride as completed?')) return;
+    setActing(id);
+    try {
+      await carpoolService.completeRide(id);
+      toast.success('Ride marked as completed');
+      setOffers(prev => prev.map(o => o.id === id ? { ...o, status: 'Completed' } : o));
+    } catch (err) {
+      toast.error(err?.message || 'Could not complete');
+    } finally { setActing(null); }
+  };
+
+  const STATUS_STYLE = {
+    Active:    { dot: 'bg-emerald-400', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    Full:      { dot: 'bg-blue-400',    badge: 'bg-blue-50 text-blue-700 border-blue-200' },
+    Completed: { dot: 'bg-gray-400',    badge: 'bg-gray-50 text-gray-600 border-gray-200' },
+    Cancelled: { dot: 'bg-rose-400',    badge: 'bg-rose-50 text-rose-700 border-rose-200' },
+  };
+
+  const counts = {
+    All:       offers.length,
+    Active:    offers.filter(o => o.status === 'Active').length,
+    Full:      offers.filter(o => o.status === 'Full').length,
+    Completed: offers.filter(o => o.status === 'Completed').length,
+    Cancelled: offers.filter(o => o.status === 'Cancelled').length,
+  };
+
+  return (
+    <div className="page-enter space-y-6">
+      <PageHeader
+        title="Carpool Rides"
+        subtitle="All ride offers posted by drivers — monitor, cancel or mark complete."
+        action={
+          <button onClick={load} className="btn-ghost flex items-center gap-2 text-sm px-4 py-2 rounded-xl">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
+        }
+      />
+
+      {/* Summary pills */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {Object.entries(counts).map(([s, n]) => {
+          const st = STATUS_STYLE[s] || { dot: 'bg-primary-400', badge: 'bg-primary-50 text-primary-700 border-primary-200' };
+          return (
+            <button key={s} onClick={() => setFilter(s)}
+              className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border font-bold text-sm transition-all ${
+                filter === s ? 'bg-gray-900 text-white border-gray-900 shadow-lg' : 'bg-white border-gray-100 text-gray-600 hover:border-gray-200'
+              }`}>
+              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${st.dot}`} />
+              <span className="flex-1 text-left">{s}</span>
+              <span className={`text-xs font-black px-2 py-0.5 rounded-full border ${filter === s ? 'bg-white/20 text-white border-white/20' : st.badge}`}>{n}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <input value={query} onChange={e => setQuery(e.target.value)}
+          placeholder="Search driver, route..."
+          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all" />
+      </div>
+
+      {loading
+        ? <Loader />
+        : filtered.length === 0
+          ? <EmptyState icon={RouteIcon} title="No carpool rides found" description="No rides match the current filter." />
+          : (
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      {['ID', 'Route', 'Driver', 'Departure', 'Seats', 'Price/seat', 'Status', 'Passengers', 'Actions'].map(h => (
+                        <th key={h} className="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-gray-500 whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filtered.map(offer => {
+                      const st = STATUS_STYLE[offer.status] || STATUS_STYLE.Active;
+                      const dep = new Date(offer.departureTime);
+                      const depStr = dep.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
+                      const depTime = dep.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+                      const bookedSeats = (offer.totalSeats || 0) - (offer.availableSeats || 0);
+                      const isActing = acting === offer.id;
+                      return (
+                        <tr key={offer.id} className="hover:bg-gray-50/70 transition-colors">
+                          <td className="px-4 py-3.5">
+                            <span className="text-xs font-black text-gray-400">#{offer.id}</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-3.5 h-3.5 text-primary-400 shrink-0" />
+                              <span className="font-bold text-gray-900 whitespace-nowrap">
+                                {offer.originCity} → {offer.destinationCity}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-lg gradient-brand flex items-center justify-center text-white font-black text-[10px] shrink-0">
+                                {offer.driverName?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+                              </div>
+                              <span className="font-semibold text-gray-700 whitespace-nowrap">{offer.driverName || '—'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <p className="font-semibold text-gray-900">{depStr}</p>
+                            <p className="text-xs text-gray-400">{depTime}</p>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-1.5">
+                              <div className="h-1.5 w-20 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-primary-500 rounded-full transition-all"
+                                  style={{ width: offer.totalSeats ? `${(bookedSeats / offer.totalSeats) * 100}%` : '0%' }} />
+                              </div>
+                              <span className="text-xs text-gray-500 font-semibold whitespace-nowrap">
+                                {bookedSeats}/{offer.totalSeats}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="font-black text-gray-900">₹{Math.round(offer.pricePerSeat)}</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${st.badge}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                              {offer.status}
+                            </span>
+                            {offer.instantBooking && (
+                              <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] font-black text-violet-600 bg-violet-50 border border-violet-200 px-1.5 py-0.5 rounded-full">
+                                <Zap className="w-2.5 h-2.5" /> Instant
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            {offer.passengers && offer.passengers.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 max-w-40">
+                                {offer.passengers.map((p, pi) => (
+                                  <span key={pi} className="text-[10px] font-bold bg-primary-50 text-primary-700 border border-primary-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                    {p.customerName?.split(' ')[0]} · {p.seatsBooked}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400">No passengers</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-2">
+                              {offer.status === 'Active' || offer.status === 'Full' ? (
+                                <>
+                                  <button disabled={isActing}
+                                    onClick={() => handleComplete(offer.id)}
+                                    className="text-xs font-bold text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-50 whitespace-nowrap">
+                                    {isActing ? '…' : '✓ Complete'}
+                                  </button>
+                                  <button disabled={isActing}
+                                    onClick={() => handleCancel(offer.id)}
+                                    className="text-xs font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-50 whitespace-nowrap">
+                                    {isActing ? '…' : '✕ Cancel'}
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-xs text-gray-400 italic">{offer.status}</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-6 py-3 border-t border-gray-50 bg-gray-50/50 flex items-center justify-between text-xs text-gray-400">
+                <span>Showing {filtered.length} of {offers.length} ride offers</span>
+                <span>Auto-refreshes every 30s</span>
+              </div>
+            </div>
+          )}
+    </div>
+  );
+}
+
 // ─── CREATE ADMIN wrapper (styled) ─────────────────────────────────────────────
 function CreateAdminPage() {
   return (
@@ -761,8 +1186,10 @@ export default function AdminDashboard() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [newRideAlert, setNewRideAlert]         = useState(false);
+  const [newCarpoolAlert, setNewCarpoolAlert]   = useState(false);
   const [rejectedAlert, setRejectedAlert]       = useState(false);
   const lastCountRef = useRef(null);
+  const lastCarpoolRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -775,6 +1202,18 @@ export default function AdminDashboard() {
 
       let rideRequests = [];
       try { rideRequests = listFrom(await bookingService.getAllRideRequests?.()); } catch { /* optional */ }
+
+      // Carpool ride offers count for new-offer alert
+      let carpoolOffers = [];
+      try {
+        const cr = await carpoolService.getAllRideOffers({ pageSize: 200 });
+        carpoolOffers = listFrom(cr);
+      } catch { /* optional */ }
+
+      if (lastCarpoolRef.current !== null && carpoolOffers.length > lastCarpoolRef.current) {
+        setNewCarpoolAlert(true);
+      }
+      lastCarpoolRef.current = carpoolOffers.length;
 
       const bList = listFrom(bookings);
 
@@ -827,7 +1266,20 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Driver rejected alert (only when a driver actually rejected) ── */}
+      {/* ── New carpool ride offer alert ── */}
+      {newCarpoolAlert && (
+        <div className="mb-5 bg-linear-to-r from-violet-600 to-purple-600 text-white px-5 py-3.5 rounded-2xl flex items-center gap-3 text-sm font-semibold shadow-xl animate-slide-down">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse shrink-0" />
+          <span className="flex-1">🚗 A driver just posted a new carpool ride offer!</span>
+          <button onClick={() => { setNewCarpoolAlert(false); navigate('/admin/carpool'); }}
+            className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-black transition whitespace-nowrap">
+            View Rides
+          </button>
+          <button onClick={() => setNewCarpoolAlert(false)} className="text-white/60 hover:text-white text-lg leading-none ml-1">×</button>
+        </div>
+      )}
+
+      {/* ── Driver rejected alert ── */}
       {rejectedAlert && (
         <div className="mb-5 bg-linear-to-r from-rose-600 to-rose-700 text-white px-5 py-3.5 rounded-2xl flex items-center gap-3 text-sm font-semibold shadow-xl">
           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -841,13 +1293,14 @@ export default function AdminDashboard() {
       )}
 
       <Routes>
-        <Route index           element={<Overview    data={data}                    />} />
-        <Route path="rides"    element={<RideOps     data={data} refresh={load}     />} />
-        <Route path="users"    element={<UsersPage   directory={data.userDirectory} />} />
-        <Route path="vehicles" element={<VehiclesPage vehicles={data.vehicles}      />} />
-        <Route path="drivers"  element={<DriversPage drivers={data.drivers}         />} />
+        <Route index               element={<Overview    data={data}                    />} />
+        <Route path="rides"        element={<RideOps     data={data} refresh={load}     />} />
+        <Route path="carpool"      element={<CarpoolRidesPage />} />
+        <Route path="users"        element={<UsersPage   directory={data.userDirectory} />} />
+        <Route path="vehicles"     element={<VehiclesPage vehicles={data.vehicles}      />} />
+        <Route path="drivers"      element={<DriversPage drivers={data.drivers}         />} />
         <Route path="create-admin" element={<CreateAdminPage />} />
-        <Route path="status"   element={<RideOps     data={data} refresh={load}     />} />
+        <Route path="status"       element={<RideOps     data={data} refresh={load}     />} />
       </Routes>
     </DashShell>
   );
