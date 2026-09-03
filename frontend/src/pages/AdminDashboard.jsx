@@ -292,23 +292,25 @@ function Overview({ data }) {
 // ─── RIDE OPERATIONS PAGE ──────────────────────────────────────────────────────
 // ─── RIDE STATUS META ─────────────────────────────────────────────────────────
 const RIDE_STATUS_META = {
-  Pending:        { color: 'bg-amber-400',   row: 'bg-amber-50/60',   text: 'text-amber-800',   border: 'border-l-amber-400',   icon: '⏳', label: 'Awaiting driver',    progress: 10 },
-  Confirmed:      { color: 'bg-blue-500',    row: 'bg-blue-50/50',    text: 'text-blue-800',    border: 'border-l-blue-400',    icon: '✓',  label: 'Driver confirmed',   progress: 30 },
-  DriverAssigned: { color: 'bg-violet-500',  row: 'bg-violet-50/50',  text: 'text-violet-800',  border: 'border-l-violet-400',  icon: '🚗', label: 'Driver on the way',  progress: 55 },
-  InProgress:     { color: 'bg-emerald-500', row: 'bg-emerald-50/50', text: 'text-emerald-800', border: 'border-l-emerald-400', icon: '🟢', label: 'Ride in progress',   progress: 80 },
-  Completed:      { color: 'bg-gray-400',    row: '',                 text: 'text-gray-600',    border: 'border-l-gray-300',    icon: '✅', label: 'Completed',          progress: 100 },
-  Cancelled:      { color: 'bg-rose-400',    row: 'bg-rose-50/30',    text: 'text-rose-700',    border: 'border-l-rose-300',    icon: '✕',  label: 'Cancelled',          progress: 0 },
+  Pending:        { color: 'bg-amber-400',   row: 'bg-amber-50/60',   text: 'text-amber-800',   border: 'border-l-amber-400',   icon: '⏳', label: 'Awaiting driver assignment', progress: 10 },
+  Confirmed:      { color: 'bg-blue-500',    row: 'bg-blue-50/50',    text: 'text-blue-800',    border: 'border-l-blue-400',    icon: '✓',  label: 'Driver confirmed',            progress: 30 },
+  DriverAssigned: { color: 'bg-orange-500',  row: 'bg-orange-50/50',  text: 'text-orange-800',  border: 'border-l-orange-400',  icon: '📲', label: 'Awaiting driver acceptance',  progress: 45 },
+  InProgress:     { color: 'bg-emerald-500', row: 'bg-emerald-50/50', text: 'text-emerald-800', border: 'border-l-emerald-400', icon: '🟢', label: 'Ride in progress',            progress: 80 },
+  Completed:      { color: 'bg-gray-400',    row: '',                 text: 'text-gray-600',    border: 'border-l-gray-300',    icon: '✅', label: 'Completed',                   progress: 100 },
+  Cancelled:      { color: 'bg-rose-400',    row: 'bg-rose-50/30',    text: 'text-rose-700',    border: 'border-l-rose-300',    icon: '✕',  label: 'Cancelled',                   progress: 0 },
 };
 
-// Timeline steps
+// Timeline steps — 6 steps including driver acceptance
 const TIMELINE_STEPS = [
-  { key: 'Pending',        label: 'Booked',          icon: '📋' },
-  { key: 'Confirmed',      label: 'Confirmed',        icon: '✓' },
-  { key: 'DriverAssigned', label: 'Driver Assigned',  icon: '👤' },
-  { key: 'InProgress',     label: 'On the Way',       icon: '🚗' },
-  { key: 'Completed',      label: 'Completed',        icon: '🏁' },
+  { key: 'Pending',        label: 'Booked',           icon: '📋' },
+  { key: 'Confirmed',      label: 'Confirmed',         icon: '✓' },
+  { key: 'DriverAssigned', label: 'Driver Assigned',   icon: '👤' },
+  { key: 'DriverAccepted', label: 'Driver Accepted',   icon: '🤝' },
+  { key: 'InProgress',     label: 'Ride Started',      icon: '🚗' },
+  { key: 'Completed',      label: 'Completed',         icon: '🏁' },
 ];
-const STEP_ORDER = { Pending: 0, Confirmed: 1, DriverAssigned: 2, InProgress: 3, Completed: 4, Cancelled: -1 };
+const STEP_ORDER = { Pending: 0, Confirmed: 1, DriverAssigned: 2, InProgress: 4, Completed: 5, Cancelled: -1 };
+// Note: step 3 (DriverAccepted) is a sub-state — shown as active once InProgress
 
 function RideTimeline({ booking }) {
   const currentStep = STEP_ORDER[booking.status] ?? 0;
@@ -501,8 +503,15 @@ function RideOps({ data, refresh }) {
                           {/* Status */}
                           <td className="px-3 py-3.5">
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black ${meta.row} ${meta.text} border border-current/20`}>
-                              <span>{meta.icon}</span> {b.status}
+                              <span>{meta.icon}</span>
+                              {b.status === 'DriverAssigned' ? 'Awaiting Acceptance' : b.status}
                             </span>
+                            {b.status === 'DriverAssigned' && (
+                              <p className="text-[10px] text-orange-500 font-bold mt-1 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-pulse shrink-0" />
+                                Driver not yet accepted
+                              </p>
+                            )}
                           </td>
                           {/* Amount */}
                           <td className="px-3 py-3.5">

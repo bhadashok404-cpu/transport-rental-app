@@ -7,7 +7,7 @@ import {
   Zap, Star, PawPrint, Wind, AlertCircle, Leaf
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { bookingService, carpoolService, vehicleService } from '../services';
+import { bookingService, carpoolService, vehicleService, accountService } from '../services';
 import { Badge, Loader, EmptyState, DashShell } from '../components';
 import toast from 'react-hot-toast';
 
@@ -68,45 +68,45 @@ function DStat({ label, value, icon: Icon, gradient }) {
 function RideDetailModal({ req, onClose, onRespond, responding }) {
   if (!req) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+    /* Centered fixed overlay — independent of page layout, footer can't affect it */
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-20">
+      {/* No background — clean transparent */}
+      <div className="absolute inset-0" onClick={onClose} />
 
       {/* Card */}
       <div className="relative w-full max-w-lg bg-white rounded-3xl overflow-hidden shadow-2xl animate-pop">
 
         {/* Header */}
-        <div className="relative overflow-hidden px-6 py-5"
+        <div className="relative overflow-hidden px-5 py-4"
           style={{ background: 'linear-gradient(135deg,#2563eb 0%,#7c3aed 60%,#db2777 100%)' }}>
           <div className="absolute inset-0 opacity-10"
             style={{ backgroundImage: 'radial-gradient(circle at 2px 2px,white 1px,transparent 0)', backgroundSize: '20px 20px' }} />
           <div className="relative flex items-center justify-between">
             <div>
               <p className="text-white/70 text-xs font-bold uppercase tracking-widest">New Ride Request</p>
-              <h2 className="text-white font-black text-2xl mt-0.5">Ride #{req.bookingId}</h2>
+              <h2 className="text-white font-black text-xl mt-0.5">Ride #{req.bookingId}</h2>
             </div>
             <button onClick={onClose}
-              className="w-9 h-9 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center text-white transition">
+              className="w-9 h-9 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center text-white transition shrink-0">
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-4">
-
+        <div className="p-5 space-y-4">
           {/* Route */}
-          <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+          <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
             <div className="flex items-start gap-3">
-              <div className="w-3 h-3 rounded-full bg-emerald-500 mt-1 shrink-0" />
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Pickup</p>
                 <p className="text-gray-900 font-bold text-sm mt-0.5">{req.pickupLocation}</p>
               </div>
             </div>
-            <div className="ml-1.5 w-px h-4 bg-gray-300" />
+            <div className="ml-1 w-px h-4 bg-gray-200" />
             <div className="flex items-start gap-3">
-              <div className="w-3 h-3 rounded-full bg-rose-500 mt-1 shrink-0" />
+              <div className="w-2.5 h-2.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Drop</p>
                 <p className="text-gray-900 font-bold text-sm mt-0.5">{req.dropLocation}</p>
@@ -131,41 +131,44 @@ function RideDetailModal({ req, onClose, onRespond, responding }) {
 
           {/* Customer phone */}
           {req.customerPhone && (
-            <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl p-3">
-              <span className="text-blue-600 text-sm">📞</span>
+            <a href={`tel:${req.customerPhone}`}
+              className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl p-3 hover:bg-blue-100 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                <span className="text-blue-600 text-base">📞</span>
+              </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Customer Phone</p>
-                <a href={`tel:${req.customerPhone}`} className="text-blue-700 font-bold text-sm hover:underline">{req.customerPhone}</a>
+                <p className="text-blue-700 font-bold text-sm">{req.customerPhone}</p>
               </div>
-            </div>
+              <span className="ml-auto text-xs font-black text-blue-600 bg-blue-100 px-2 py-1 rounded-lg">Call</span>
+            </a>
           )}
-
-          {/* Action buttons */}
-          <div className="flex gap-3 pt-2">
-            <button
-              disabled={responding}
-              onClick={() => onRespond(true)}
-              className="flex-1 py-4 rounded-2xl font-black text-white text-base transition-all hover:-translate-y-0.5 shadow-xl hover:shadow-2xl disabled:opacity-60 flex items-center justify-center gap-2"
-              style={{ background: 'linear-gradient(135deg,#059669,#0d9488)' }}>
-              {responding === 'accept'
-                ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                : <span>🚗 Accept & Pickup Customer</span>}
-            </button>
-            <button
-              disabled={responding}
-              onClick={() => onRespond(false)}
-              className="px-5 py-4 rounded-2xl font-bold text-rose-600 bg-rose-50 border-2 border-rose-200 hover:bg-rose-100 transition-all disabled:opacity-60 text-sm whitespace-nowrap">
-              ✕ Reject
-            </button>
-          </div>
 
           <p className="text-center text-xs text-gray-400">
             Once accepted, the customer and admin will be notified immediately.
           </p>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            <button disabled={!!responding} onClick={() => onRespond(true)}
+              className="flex-1 py-4 rounded-2xl font-black text-white text-sm shadow-xl hover:shadow-2xl transition-all hover:-translate-y-0.5 disabled:opacity-60 flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(135deg,#059669,#0d9488)' }}>
+              {responding === 'accept'
+                ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                : '🚗 Accept & Pickup Customer'}
+            </button>
+            <button disabled={!!responding} onClick={() => onRespond(false)}
+              className="px-5 py-4 rounded-2xl font-bold text-rose-600 bg-rose-50 border-2 border-rose-200 hover:bg-rose-100 transition-all disabled:opacity-60 text-sm whitespace-nowrap">
+              {responding === 'reject'
+                ? <span className="w-4 h-4 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin inline-block" />
+                : '✕ Reject'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
+
 }
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
@@ -206,7 +209,18 @@ function DriverOverview() {
     if (!openReq) return;
     setResponding(accept ? 'accept' : 'reject');
     try {
-      await bookingService.respondToRequest(openReq.id, user.driverId, accept);
+      // First try the ride-request respond endpoint (works when there's a pending RideRequest row)
+      // If that fails, fall back to direct booking status update
+      try {
+        await bookingService.respondToRequest(openReq.id, user.driverId, accept);
+      } catch {
+        // Fallback: if accept, start the trip; if reject, cancel with reason
+        if (accept) {
+          await bookingService.startTrip(openReq.bookingId);
+        } else {
+          await bookingService.cancel(openReq.bookingId, 'Driver declined this ride');
+        }
+      }
       toast.success(accept ? '🚗 Ride accepted! Head to pickup.' : 'Ride declined.');
       setOpenReq(null);
       await Promise.all([loadBookings(), loadRequests()]);
@@ -310,34 +324,65 @@ function DriverOverview() {
             ? <EmptyState icon={Car} title="No trips yet" description="Assigned trips appear here" />
             : (
               <div className="divide-y divide-gray-50">
-                {bookings.slice(0, 5).map(b => (
-                  <div key={b.id}
-                    className="flex items-center gap-4 px-6 py-4 hover:bg-emerald-50/30 transition-colors">
-                    <div className="w-10 h-10 bg-linear-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shrink-0">
-                      <Car className="w-5 h-5 text-white" />
+                {bookings.slice(0, 5).map(b => {
+                  const isNewRide = b.status === 'DriverAssigned';
+                  // Build a request-like object from booking so the modal works even without a requests entry
+                  const reqFromBooking = {
+                    id:              requests.find(r => r.bookingId === b.id)?.id ?? b.id,
+                    bookingId:       b.id,
+                    pickupLocation:  b.pickupLocation,
+                    dropLocation:    b.dropLocation,
+                    pickupDate:      b.pickupDate,
+                    estimatedPrice:  b.estimatedPrice,
+                    vehicleInfo:     b.vehicleInfo,
+                    customerName:    b.customerName,
+                    customerPhone:   b.customerPhone,
+                  };
+                  return (
+                    <div key={b.id}
+                      className={`flex items-center gap-4 px-6 py-4 transition-colors ${
+                        isNewRide
+                          ? 'bg-linear-to-r from-violet-50 to-purple-50 border-l-4 border-violet-400'
+                          : 'hover:bg-emerald-50/30'
+                      }`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        isNewRide
+                          ? 'bg-linear-to-br from-violet-500 to-purple-600'
+                          : 'bg-linear-to-br from-emerald-500 to-teal-600'
+                      }`}>
+                        <Car className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 text-sm truncate">
+                          {b.pickupLocation} → {b.dropLocation}
+                        </p>
+                        {isNewRide ? (
+                          <p className="text-xs font-black text-violet-600 flex items-center gap-1 mt-0.5">
+                            <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-pulse shrink-0" />
+                            You have a new ride — action required!
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-400">
+                            {new Date(b.pickupDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-black text-emerald-700 text-sm">₹{b.estimatedPrice || 0}</span>
+                        {isNewRide ? (
+                          <button
+                            onClick={() => setOpenReq(reqFromBooking)}
+                            className="px-4 py-2 text-xs font-black text-white rounded-xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 flex items-center gap-1.5 whitespace-nowrap"
+                            style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+                            <Car className="w-3.5 h-3.5" /> View Ride
+                          </button>
+                        ) : (
+                          <Badge status={b.status} />
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 text-sm truncate">
-                        {b.pickupLocation} → {b.dropLocation}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(b.pickupDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="font-black text-emerald-700 text-sm">₹{b.estimatedPrice || 0}</span>
-                      <Badge status={b.status} />
-                      {/* "Open Ride" for DriverAssigned trips in the list too */}
-                      {b.status === 'DriverAssigned' && requests.find(r => r.bookingId === b.id) && (
-                        <button
-                          onClick={() => setOpenReq(requests.find(r => r.bookingId === b.id))}
-                          className="px-3 py-1.5 text-xs font-black text-white bg-linear-to-r from-primary-600 to-violet-600 rounded-lg shadow hover:shadow-lg transition">
-                          Open
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
       </div>
@@ -348,15 +393,23 @@ function DriverOverview() {
 // ─── My Trips (with Start/Complete Trip actions) ──────────────────────────────
 function DriverTrips() {
   const { user } = useApp();
-  const [bookings, setBookings] = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [acting,   setActing]   = useState(null);
+  const [bookings,   setBookings]   = useState([]);
+  const [requests,   setRequests]   = useState([]);   // pending ride requests
+  const [loading,    setLoading]    = useState(true);
+  const [acting,     setActing]     = useState(null);
+  const [openReq,    setOpenReq]    = useState(null);
+  const [responding, setResponding] = useState(null);
 
   const load = useCallback(async () => {
     if (!user?.driverId) { setLoading(false); return; }
     try {
-      const r = await bookingService.getByDriver(user.driverId, { pageSize: 200 });
-      setBookings(r?.data?.items || r?.data || r?.items || r || []);
+      const [bRes, rRes] = await Promise.all([
+        bookingService.getByDriver(user.driverId, { pageSize: 200 }),
+        bookingService.getDriverRequests(user.driverId).catch(() => []),
+      ]);
+      setBookings(bRes?.data?.items || bRes?.data || bRes?.items || bRes || []);
+      const rList = rRes?.data || rRes?.items || rRes || [];
+      setRequests(Array.isArray(rList) ? rList : []);
     } catch { /* silent */ }
     finally { setLoading(false); }
   }, [user?.driverId]);
@@ -366,78 +419,183 @@ function DriverTrips() {
   const doAction = async (bookingId, action) => {
     setActing(bookingId + action);
     try {
-      if (action === 'start')   await bookingService.startTrip(bookingId);
+      if (action === 'start')    await bookingService.startTrip(bookingId);
       if (action === 'complete') await bookingService.complete(bookingId, 0);
-      toast.success(action === 'start' ? '🚗 Trip started!' : '✓ Trip completed!');
+      toast.success(action === 'start' ? '🚗 Trip started!' : '✅ Trip completed!');
       await load();
     } catch (err) {
       toast.error(err?.message || err?.title || 'Action failed. Try again.');
     } finally { setActing(null); }
   };
 
+  const handleRespond = async (accept) => {
+    if (!openReq) return;
+    setResponding(accept ? 'accept' : 'reject');
+    try {
+      try {
+        await bookingService.respondToRequest(openReq.id, user.driverId, accept);
+      } catch {
+        // Fallback when no RideRequest row exists:
+        // Accept = set status to InProgress (driver is starting the trip)
+        // Reject = cancel the booking
+        if (accept) {
+          await bookingService.startTrip(openReq.bookingId);
+        } else {
+          await bookingService.cancel(openReq.bookingId, 'Driver declined this ride');
+        }
+      }
+      toast.success(accept ? '🚗 Ride accepted! Head to pickup.' : 'Ride declined.');
+      setOpenReq(null);
+      await load();
+    } catch (err) {
+      toast.error(err?.message || err?.title || 'Could not respond. Try again.');
+    } finally { setResponding(null); }
+  };
+
   const STATUS_ACTIONS = {
-    DriverAssigned: { label: 'Start Trip', action: 'start', color: 'bg-blue-500 hover:bg-blue-400' },
-    Confirmed:      { label: 'Start Trip', action: 'start', color: 'bg-blue-500 hover:bg-blue-400' },
-    InProgress:     { label: 'Complete Trip', action: 'complete', color: 'bg-emerald-500 hover:bg-emerald-400' },
+    // DriverAssigned: only "View Ride" button shows — no Start Trip until driver accepts
+    Confirmed:      { label: 'Start Trip',    action: 'start',    color: 'bg-blue-500 hover:bg-blue-600' },
+    InProgress:     { label: 'Complete Trip', action: 'complete', color: 'bg-emerald-500 hover:bg-emerald-600' },
+  };
+
+  // Color coding per status
+  const ROW_STYLE = {
+    DriverAssigned: { border: 'border-l-violet-400', bg: 'bg-violet-50/40' },
+    Confirmed:      { border: 'border-l-blue-400',   bg: 'bg-blue-50/40' },
+    InProgress:     { border: 'border-l-emerald-400',bg: 'bg-emerald-50/40' },
+    Completed:      { border: 'border-l-gray-200',   bg: '' },
+    Cancelled:      { border: 'border-l-rose-300',   bg: 'bg-rose-50/20' },
   };
 
   return (
     <div className="page-enter space-y-6">
+      {/* Modal */}
+      <RideDetailModal
+        req={openReq}
+        onClose={() => setOpenReq(null)}
+        onRespond={handleRespond}
+        responding={responding}
+      />
+
       <h1 className="text-2xl font-black text-gray-900">My Trips</h1>
+
       {loading ? <Loader />
         : bookings.length === 0
           ? <EmptyState icon={Car} title="No trips assigned" description="Your assigned trips will appear here." />
           : (
             <div className="space-y-4">
               {bookings.map(b => {
-                const act = STATUS_ACTIONS[b.status];
+                const act  = STATUS_ACTIONS[b.status];
+                const sty  = ROW_STYLE[b.status] || {};
+                const req  = requests.find(r => r.bookingId === b.id);
+                // Show "new ride" UI for ALL DriverAssigned bookings — don't require a pending request entry
+                const isNew = b.status === 'DriverAssigned';
+                const reqForModal = {
+                  id:             req?.id ?? b.id,
+                  bookingId:      b.id,
+                  pickupLocation: b.pickupLocation,
+                  dropLocation:   b.dropLocation,
+                  pickupDate:     b.pickupDate,
+                  estimatedPrice: b.estimatedPrice,
+                  vehicleInfo:    b.vehicleInfo,
+                  customerName:   b.customerName,
+                  customerPhone:  b.customerPhone,
+                };
+
                 return (
-                  <div key={b.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-black text-gray-900 text-sm">Trip #{b.id}</span>
-                          <Badge status={b.status} />
-                        </div>
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                          <MapPin className="w-3 h-3 shrink-0" />
-                          {b.pickupLocation} → {b.dropLocation}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(b.pickupDate).toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short', year:'numeric' })}
-                          {' · '}Customer: {b.customerName || '—'}
-                          {b.customerPhone && <span> · 📞 {b.customerPhone}</span>}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="font-black text-emerald-700 text-lg">₹{b.estimatedPrice || 0}</span>
-                        {act && (
-                          <button
-                            disabled={acting === b.id + act.action}
-                            onClick={() => doAction(b.id, act.action)}
-                            className={`px-4 py-2 text-white text-sm font-black rounded-xl transition shadow-lg disabled:opacity-60 flex items-center gap-1.5 ${act.color}`}>
-                            {acting === b.id + act.action
-                              ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                              : act.label}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {/* Progress bar for InProgress */}
-                    {b.status === 'InProgress' && (
-                      <div className="mt-4 pt-4 border-t border-gray-50">
-                        <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-2">
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                            Ride in progress
-                          </span>
-                          <span>Mark complete when done</span>
-                        </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-linear-to-r from-emerald-500 to-teal-500 rounded-full w-1/2 animate-pulse" />
-                        </div>
+                  <div key={b.id}
+                    className={`bg-white rounded-2xl shadow-sm border border-gray-100 border-l-4 overflow-hidden ${sty.border || 'border-l-gray-100'} ${sty.bg || ''}`}>
+
+                    {/* NEW badge pulse strip */}
+                    {isNew && (
+                      <div className="bg-linear-to-r from-violet-600 to-purple-600 px-4 py-2 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-white rounded-full animate-pulse shrink-0" />
+                        <span className="text-white text-xs font-black">New ride assigned — Action required!</span>
                       </div>
                     )}
+
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <span className="font-black text-gray-900 text-sm">Trip #{b.id}</span>
+                            <Badge status={b.status} />
+                          </div>
+                          <p className="text-xs text-gray-600 flex items-center gap-1 mb-1">
+                            <MapPin className="w-3 h-3 shrink-0 text-emerald-500" />
+                            <span className="font-semibold">{b.pickupLocation}</span>
+                            <span className="text-gray-400 mx-1">→</span>
+                            <span className="font-semibold text-gray-600">{b.dropLocation}</span>
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(b.pickupDate).toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short', year:'numeric' })}
+                          </p>
+
+                          {/* Customer info */}
+                          {b.customerName && (
+                            <div className="mt-3 flex items-center gap-3 bg-white rounded-xl p-3 border border-gray-100">
+                              <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center text-white font-black text-xs shrink-0">
+                                {b.customerName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900">{b.customerName}</p>
+                                {b.customerPhone && (
+                                  <a href={`tel:${b.customerPhone}`}
+                                    className="text-xs text-primary-600 hover:text-primary-800 font-semibold flex items-center gap-1">
+                                    📞 {b.customerPhone}
+                                  </a>
+                                )}
+                              </div>
+                              {b.vehicleInfo && (
+                                <p className="text-xs text-gray-400 shrink-0">🚗 {b.vehicleInfo}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <span className="font-black text-emerald-700 text-lg">₹{b.estimatedPrice || 0}</span>
+                          <div className="flex items-center gap-2 flex-wrap justify-end">
+                            {/* "View Ride" opens the modal for DriverAssigned trips */}
+                            {isNew && (
+                              <button onClick={() => setOpenReq(reqForModal)}
+                                className="px-4 py-2 text-white text-xs font-black rounded-xl shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 flex items-center gap-1.5"
+                                style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+                                <Car className="w-3.5 h-3.5" /> View Ride
+                              </button>
+                            )}
+                            {/* Start / Complete action */}
+                            {act && (
+                              <button
+                                disabled={!!acting}
+                                onClick={() => doAction(b.id, act.action)}
+                                className={`px-4 py-2 text-white text-xs font-black rounded-xl transition shadow-lg disabled:opacity-60 flex items-center gap-1.5 ${act.color}`}>
+                                {acting === b.id + act.action
+                                  ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                  : act.label}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* InProgress progress bar */}
+                      {b.status === 'InProgress' && (
+                        <div className="mt-4 pt-4 border-t border-gray-50">
+                          <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-2">
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                              Ride in progress
+                            </span>
+                            <span>Mark complete when done</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-linear-to-r from-emerald-500 to-teal-500 rounded-full w-3/5 animate-pulse" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -541,20 +699,59 @@ function DriverEarnings() {
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 function DriverProfile() {
-  const { user } = useApp();
-  const [form, setForm] = useState({
-    firstName:   user?.firstName || '',
-    lastName:    user?.lastName  || '',
-    email:       user?.email     || '',
-    phoneNumber: user?.phoneNumber || '',
-    address:     user?.address   || '',
-  });
-  const [saved, setSaved] = useState(false);
-  const save = e => {
+  const { user, updateUser } = useApp();
+  const [form, setForm] = useState({ name: '', email: '', phoneNumber: '', address: '' });
+  const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState(false);
+  const [saved,   setSaved]   = useState(false);
+  const [error,   setError]   = useState('');
+
+  useEffect(() => {
+    accountService.getProfile()
+      .then(r => {
+        const p = r?.data || r;
+        setForm({
+          name:        p.name        || `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+          email:       p.email       || user?.email || '',
+          phoneNumber: p.phoneNumber || user?.phoneNumber || '',
+          address:     p.address     || user?.address || '',
+        });
+      })
+      .catch(() => {
+        setForm({
+          name:        `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+          email:       user?.email       || '',
+          phoneNumber: user?.phoneNumber || '',
+          address:     user?.address     || '',
+        });
+      })
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line
+
+  const save = async e => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    setError('');
+    if (!form.name.trim() || !form.email.trim()) { setError('Name and email are required.'); return; }
+    setSaving(true);
+    try {
+      const res = await accountService.updateProfile({
+        name:        form.name.trim(),
+        email:       form.email.trim(),
+        phoneNumber: form.phoneNumber.trim(),
+        address:     form.address.trim(),
+      });
+      const updated = res?.data || res;
+      if (updateUser) updateUser(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setError(err?.message || err?.title || 'Could not save. Please try again.');
+    } finally { setSaving(false); }
   };
+
+  const initials = form.name
+    ? form.name.trim().split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    : ((user?.firstName || 'D')[0] + (user?.lastName || '')[0]).toUpperCase();
 
   return (
     <div className="page-enter max-w-2xl space-y-6">
@@ -566,21 +763,15 @@ function DriverProfile() {
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 2px 2px,white 1px,transparent 0)', backgroundSize: '24px 24px' }} />
         <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center text-white text-3xl font-black shadow-xl shrink-0 relative">
-          {(user?.firstName || 'D')[0]}{(user?.lastName || '')[0]}
+          {initials || 'D'}
         </div>
         <div className="relative">
-          <p className="text-2xl font-black">{user?.firstName} {user?.lastName}</p>
-          <p className="text-white/65 text-sm">{user?.email}</p>
+          <p className="text-2xl font-black">{form.name || user?.firstName}</p>
+          <p className="text-white/65 text-sm">{form.email || user?.email}</p>
           <div className="flex flex-wrap items-center gap-3 mt-3">
-            <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">
-              ⭐ {user?.rating || '4.5'} Rating
-            </span>
-            <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">
-              🚗 {user?.totalTrips || 0} Trips
-            </span>
-            <span className="bg-emerald-400/30 px-3 py-1 rounded-full text-xs font-bold text-emerald-200">
-              ✓ Verified Driver
-            </span>
+            <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">⭐ {user?.rating || '4.5'} Rating</span>
+            <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">🚗 {user?.totalTrips || 0} Trips</span>
+            <span className="bg-emerald-400/30 px-3 py-1 rounded-full text-xs font-bold text-emerald-200">✓ Verified Driver</span>
           </div>
         </div>
       </div>
@@ -588,50 +779,47 @@ function DriverProfile() {
       {/* Edit form */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
-          <div className="w-1.5 h-5 rounded-full bg-linear-to-b from-emerald-500 to-teal-600" />
+          <div className="w-1.5 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#059669,#0d9488)' }} />
           <h2 className="font-black text-gray-900">Edit Information</h2>
         </div>
-        <form onSubmit={save} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {[['firstName', 'First Name'], ['lastName', 'Last Name']].map(([k, l]) => (
-              <div key={k}>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">{l}</label>
-                <input
-                  value={form[k]}
-                  onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-400 transition-all"
-                />
-              </div>
-            ))}
-          </div>
-          {[['email', 'Email', 'email'], ['phoneNumber', 'Phone', 'tel'], ['address', 'Address', 'text']].map(([k, l, t]) => (
-            <div key={k}>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">{l}</label>
-              <input
-                type={t}
-                value={form[k]}
-                onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-400 transition-all"
-              />
-            </div>
-          ))}
-          {user?.licenseNumber && (
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">License Number</label>
-              <input
-                value={user.licenseNumber}
-                readOnly
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-400 cursor-not-allowed"
-              />
-            </div>
+        {loading
+          ? <div className="p-8 flex justify-center"><Loader /></div>
+          : (
+            <form onSubmit={save} className="p-6 space-y-4">
+              {error && (
+                <div className="px-4 py-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold rounded-xl">{error}</div>
+              )}
+              {[
+                { k: 'name',        l: 'Full Name',      t: 'text',  ph: 'Your full name',       req: true },
+                { k: 'email',       l: 'Email',          t: 'email', ph: 'your@email.com',        req: true },
+                { k: 'phoneNumber', l: 'Phone',          t: 'tel',   ph: '+91 98765 43210' },
+                { k: 'address',     l: 'Address',        t: 'text',  ph: 'Your address' },
+              ].map(({ k, l, t, ph, req }) => (
+                <div key={k}>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">{l}</label>
+                  <input
+                    type={t} value={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))}
+                    placeholder={ph} required={!!req}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-400 transition-all"
+                  />
+                </div>
+              ))}
+              {user?.licenseNumber && (
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">License Number</label>
+                  <input value={user.licenseNumber} readOnly
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-400 cursor-not-allowed" />
+                </div>
+              )}
+              <button type="submit" disabled={saving}
+                className="w-full py-4 rounded-xl font-black text-white transition-all hover:-translate-y-0.5 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg,#059669,#0d9488)' }}>
+                {saving
+                  ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : saved ? '✓ Profile Saved!' : 'Save Changes'}
+              </button>
+            </form>
           )}
-          <button
-            type="submit"
-            className="w-full py-4 rounded-xl font-black text-white transition-all hover:-translate-y-0.5 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-            style={{ background: 'linear-gradient(135deg,#059669,#0d9488)' }}>
-            {saved ? '✓ Profile Saved!' : 'Save Changes'}
-          </button>
-        </form>
       </div>
     </div>
   );
@@ -810,24 +998,57 @@ function DriverRides() {
 
             {/* Route */}
             <div className="grid sm:grid-cols-2 gap-4">
-              {[
-                { k: 'originCity',      l: 'From (City)',         ph: 'e.g. Pune',         req: true },
-                { k: 'destinationCity', l: 'To (City)',           ph: 'e.g. Mumbai',       req: true },
-                { k: 'originAddress',   l: 'Pickup Address',      ph: 'Detailed pickup point' },
-                { k: 'destinationAddress', l: 'Drop Address',     ph: 'Detailed drop point' },
-              ].map(({ k, l, ph, req }) => (
-                <div key={k}>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
-                    {l} {req && <span className="text-rose-500">*</span>}
-                  </label>
-                  <div className="relative">
-                    <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none ${k.includes('origin') ? 'text-emerald-500' : 'text-rose-500'}`} />
-                    <input value={form[k]} onChange={e => ff(k, e.target.value)}
-                      placeholder={ph} required={!!req}
-                      className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-400 transition-all" />
-                  </div>
+              {/* From City — autocomplete */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+                  From (City) <span className="text-rose-500">*</span>
+                </label>
+                <LocationAutocomplete
+                  value={form.originCity}
+                  onChange={v => ff('originCity', v)}
+                  placeholder="e.g. Pune"
+                  pinColor="#10b981"
+                />
+              </div>
+
+              {/* To City — autocomplete */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+                  To (City) <span className="text-rose-500">*</span>
+                </label>
+                <LocationAutocomplete
+                  value={form.destinationCity}
+                  onChange={v => ff('destinationCity', v)}
+                  placeholder="e.g. Mumbai"
+                  pinColor="#ef4444"
+                />
+              </div>
+
+              {/* Pickup Address — plain input */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+                  Pickup Address
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none text-emerald-500" />
+                  <input value={form.originAddress} onChange={e => ff('originAddress', e.target.value)}
+                    placeholder="Detailed pickup point"
+                    className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-400 transition-all" />
                 </div>
-              ))}
+              </div>
+
+              {/* Drop Address — plain input */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+                  Drop Address
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none text-rose-500" />
+                  <input value={form.destinationAddress} onChange={e => ff('destinationAddress', e.target.value)}
+                    placeholder="Detailed drop point"
+                    className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-400 transition-all" />
+                </div>
+              </div>
             </div>
 
             {/* Departure + duration + distance */}

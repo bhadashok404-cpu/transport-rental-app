@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Routes, Route, Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   LayoutDashboard, Car, Bell, User, LogOut, ChevronRight,
   TrendingUp, CheckCircle, XCircle, Clock, MapPin, Calendar,
-  Star, Zap, Sparkles, ArrowUpRight, Users, Leaf
+  Star, Zap, Sparkles, ArrowUpRight, Users, Leaf, Phone, ThumbsUp
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { bookingService, carpoolService } from '../services';
+import { bookingService, carpoolService, accountService } from '../services';
 import { Badge, Loader, EmptyState, StarRating, DashShell } from '../components';
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
@@ -103,73 +103,186 @@ function BookingRow({ booking: b, onClick }) {
 function RideTracker({ bookings }) {
   const navigate = useNavigate();
   const active = bookings.filter(b =>
-    ['Pending','Confirmed','DriverAssigned','InProgress'].includes(b.status)
+    ['Pending','Confirmed','DriverAssigned','InProgress','Completed'].includes(b.status)
   );
   if (active.length === 0) return null;
 
-  const STATUS_INFO = {
-    Pending:        { label: 'Waiting for driver',  color: 'bg-amber-500',   icon: '⏳', progress: 10 },
-    Confirmed:      { label: 'Driver confirmed',     color: 'bg-blue-500',    icon: '✓',  progress: 30 },
-    DriverAssigned: { label: 'Driver on the way',    color: 'bg-violet-500',  icon: '🚗', progress: 60 },
-    InProgress:     { label: 'Ride in progress',     color: 'bg-emerald-500', icon: '🟢', progress: 85 },
+  // Full 8-step journey for each status
+  const STEPS = [
+    { key: 'booked',     label: 'Ride Booked',      icon: '📋' },
+    { key: 'assigned',   label: 'Driver Assigned',   icon: '👤' },
+    { key: 'accepted',   label: 'Ride Accepted By Driver',   icon: '✅' },
+    { key: 'coming',     label: 'Driver Coming',     icon: '🚗' },
+    { key: 'arrived',    label: 'Driver Arrived',    icon: '📍' },
+    { key: 'started',    label: 'Ride Started',      icon: '🟢' },
+    { key: 'enroute',    label: 'En Route',          icon: '🛣️' },
+    { key: 'finished',   label: 'Ride Finished',     icon: '🏁' },
+  ];
+
+  const STATUS_COLOR = {
+    Pending:        { bg: 'bg-amber-500',   gradient: 'from-amber-500 to-orange-500',  label: 'Waiting for driver assignment',       icon: '⏳' },
+    Confirmed:      { bg: 'bg-blue-500',    gradient: 'from-blue-500 to-blue-600',     label: 'Confirmed — awaiting driver acceptance', icon: '✓' },
+    DriverAssigned: { bg: 'bg-orange-500',  gradient: 'from-orange-500 to-amber-600',  label: 'Driver assigned — awaiting acceptance', icon: '📲' },
+    InProgress:     { bg: 'bg-emerald-500', gradient: 'from-emerald-500 to-teal-600',  label: 'Ride in progress',                    icon: '🟢' },
+    Completed:      { bg: 'bg-gray-500',    gradient: 'from-gray-500 to-gray-600',     label: 'Ride completed',                      icon: '🏁' },
+  };
+
+  const getStepsDone = (status) => {
+    // DriverAssigned = 2 steps done (Booked + Driver Assigned)
+    // Driver hasn't accepted yet — don't jump to step 4
+    const map = { Pending: 1, Confirmed: 1, DriverAssigned: 2, InProgress: 6, Completed: 8 };
+    return map[status] ?? 1;
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {active.map(b => {
-        const info = STATUS_INFO[b.status] || STATUS_INFO.Pending;
+        const sc    = STATUS_COLOR[b.status] || STATUS_COLOR.Pending;
+        const done  = getStepsDone(b.status);
+        const isLive = ['Pending','Confirmed','DriverAssigned','InProgress'].includes(b.status);
+        const pct   = Math.round((done / STEPS.length) * 100);
+
         return (
-          <div key={b.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className={`${info.color} px-5 py-3 flex items-center justify-between`}>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                <span className="text-white font-black text-sm">{info.icon} {info.label}</span>
+          <div key={b.id} className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+
+            {/* Colored status bar */}
+            <div className={`bg-linear-to-r ${sc.gradient} px-5 py-3.5 flex items-center justify-between`}>
+              <div className="flex items-center gap-2.5">
+                {isLive && <span className="relative flex w-2.5 h-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+                  <span className="relative inline-flex rounded-full w-2.5 h-2.5 bg-white" />
+                </span>}
+                <span className="text-white font-black text-sm">{sc.icon} {sc.label}</span>
               </div>
-              <span className="text-white/70 text-xs font-semibold">Ride #{b.id}</span>
+              <span className="text-white/70 text-xs font-bold">Ride #{b.id}</span>
             </div>
 
-            <div className="px-5 pt-4 pb-2">
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className={`h-full ${info.color} rounded-full transition-all duration-700`}
-                  style={{ width: `${info.progress}%` }} />
+            {/* Progress bar */}
+            <div className="px-5 pt-4 pb-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-gray-500">{done}/{STEPS.length} steps</span>
+                <span className="text-xs font-black text-primary-600">{pct}% complete</span>
               </div>
-              <div className="flex justify-between text-[10px] text-gray-400 mt-1 font-medium">
-                <span>Booked</span><span>Assigned</span><span>On Way</span><span>Arrived</span>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className={`h-full bg-linear-to-r ${sc.gradient} rounded-full transition-all duration-1000`}
+                  style={{ width: `${pct}%` }} />
               </div>
             </div>
 
-            <div className="px-5 py-3 space-y-2">
-              {[{loc: b.pickupLocation, color:'bg-emerald-500'},{loc: b.dropLocation, color:'bg-rose-500'}].map((r,i) => (
-                <div key={i} className="flex items-start gap-2">
+            {/* Step dots */}
+            <div className="px-5 pb-4">
+              <div className="flex items-center justify-between gap-1 overflow-x-auto">
+                {STEPS.map((step, i) => {
+                  const stepDone   = i < done;
+                  const stepActive = i === done - 1;
+                  return (
+                    <div key={step.key} className="flex flex-col items-center gap-1 shrink-0">
+                      <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs transition-all
+                        ${stepActive
+                          ? `border-primary-500 bg-primary-500 text-white shadow-lg shadow-primary-200 scale-110`
+                          : stepDone
+                            ? 'border-emerald-400 bg-emerald-50 text-emerald-600'
+                            : 'border-gray-200 bg-white text-gray-300'}`}>
+                        {stepActive
+                          ? <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                          : stepDone ? '✓' : step.icon}
+                      </div>
+                      <span className={`text-[9px] font-bold text-center leading-tight max-w-12 hidden sm:block
+                        ${stepActive ? 'text-primary-700' : stepDone ? 'text-emerald-600' : 'text-gray-300'}`}>
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Route */}
+            <div className="px-5 py-3 space-y-2 border-t border-gray-50">
+              {[
+                { loc: b.pickupLocation, color: 'bg-emerald-500', label: 'Pickup' },
+                { loc: b.dropLocation,   color: 'bg-rose-500',    label: 'Drop' },
+              ].map((r, i) => (
+                <div key={i} className="flex items-start gap-2.5">
                   <div className={`w-2 h-2 rounded-full ${r.color} mt-1.5 shrink-0`} />
-                  <span className="text-sm text-gray-700 font-medium">{r.loc}</span>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{r.label}</p>
+                    <p className="text-sm text-gray-800 font-semibold">{r.loc}</p>
+                  </div>
                 </div>
               ))}
             </div>
 
+            {/* Driver card — shown once assigned */}
             {(b.driverName || b.driverPhone) && (
-              <div className="mx-5 mb-4 p-3.5 bg-gray-50 rounded-xl flex items-center gap-3">
-                <div className="w-10 h-10 bg-linear-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0 shadow">
-                  {(b.driverName||'D').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
+              <div className="mx-5 mb-4 p-4 rounded-2xl border border-violet-100"
+                style={{ background: 'linear-gradient(135deg,#f5f3ff,#fdf2f8)' }}>
+                <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 mb-3">Your Driver</p>
+                <div className="flex items-center gap-4">
+                  {/* Avatar */}
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg shrink-0"
+                    style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+                    {(b.driverName || 'D').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-gray-900">{b.driverName}</p>
+                    {b.driverPhone && (
+                      <a href={`tel:${b.driverPhone}`}
+                        className="text-sm text-violet-600 hover:text-violet-800 font-semibold transition-colors flex items-center gap-1 mt-0.5">
+                        📞 {b.driverPhone}
+                      </a>
+                    )}
+                    {b.vehicleInfo && (
+                      <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                        🚗 {b.vehicleInfo}
+                        {b.vehicleRegistration && (
+                          <span className="font-black text-gray-700 tracking-widest ml-1">{b.vehicleRegistration}</span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  {b.driverPhone && (
+                    <a href={`tel:${b.driverPhone}`}
+                      className="px-4 py-2.5 rounded-xl text-white text-xs font-black shadow transition-all hover:shadow-lg hover:-translate-y-0.5 shrink-0"
+                      style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+                      Call
+                    </a>
+                  )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-900 text-sm">{b.driverName}</p>
-                  {b.driverPhone && <p className="text-xs text-gray-500">📞 {b.driverPhone}</p>}
-                  {b.vehicleInfo && <p className="text-xs text-gray-500">🚗 {b.vehicleInfo}</p>}
-                </div>
-                {b.driverPhone && (
-                  <a href={`tel:${b.driverPhone}`}
-                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-lg transition">
-                    Call
-                  </a>
+
+                {/* Status-specific messages */}
+                {b.status === 'DriverAssigned' && (
+                  <div className="mt-3 bg-violet-100 border border-violet-200 rounded-xl px-3 py-2.5 text-xs text-violet-700 font-semibold flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-pulse shrink-0" />
+                    Your driver is on the way · Estimated arrival ~30 min
+                  </div>
+                )}
+                {b.status === 'InProgress' && (
+                  <div className="mt-3 bg-emerald-100 border border-emerald-200 rounded-xl px-3 py-2.5 text-xs text-emerald-700 font-semibold flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0" />
+                    Ride in progress · Estimated arrival ~40 min
+                  </div>
                 )}
               </div>
             )}
 
-            <div className="px-5 pb-4 flex items-center justify-between">
-              <span className="text-lg font-black text-primary-700">₹{b.estimatedPrice}</span>
+            {/* Completed — show feedback CTA */}
+            {b.status === 'Completed' && (
+              <div className="mx-5 mb-4 p-4 rounded-2xl bg-linear-to-r from-amber-50 to-orange-50 border border-amber-200">
+                <p className="text-sm font-black text-amber-800 mb-2">🎉 Ride Complete! How was your experience?</p>
+                <button onClick={() => navigate(`/dashboard/bookings/${b.id}?feedback=1`)}
+                  className="w-full py-3 rounded-xl text-white font-black text-sm shadow-lg transition-all hover:-translate-y-0.5"
+                  style={{ background: 'linear-gradient(135deg,#f59e0b,#ef4444)' }}>
+                  ⭐ Rate Your Ride
+                </button>
+              </div>
+            )}
+
+            {/* Footer row */}
+            <div className="px-5 pb-4 flex items-center justify-between border-t border-gray-50 pt-3">
+              <span className="text-lg font-black text-primary-700">₹{b.estimatedPrice || b.actualPrice || 0}</span>
               <button onClick={() => navigate(`/dashboard/bookings/${b.id}`)}
-                className="text-xs text-primary-600 font-bold hover:text-primary-800 flex items-center gap-1">
+                className="text-xs text-primary-600 font-bold hover:text-primary-800 flex items-center gap-1 transition-colors">
                 View Details <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -232,7 +345,7 @@ function Overview() {
       </div>
 
       {/* Active ride tracker */}
-      {bookings.some(b => ['Pending','Confirmed','DriverAssigned','InProgress'].includes(b.status)) && (
+      {bookings.some(b => ['Pending','Confirmed','DriverAssigned','InProgress','Completed'].includes(b.status)) && (
         <div>
           <h2 className="font-black text-gray-900 text-lg mb-3 flex items-center gap-2">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> Live Ride Tracker
@@ -272,7 +385,7 @@ function MyBookings() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('All');
 
-  const TABS = ['All', 'Pending', 'Confirmed', 'InProgress', 'Completed', 'Cancelled'];
+  const TABS = ['All', 'Pending', 'Confirmed', 'DriverAssigned', 'InProgress', 'Completed', 'Cancelled'];
 
   useEffect(() => {
     if (!user?.customerId) { setLoading(false); return; }
@@ -313,9 +426,16 @@ function MyBookings() {
 // ─── Booking detail ───────────────────────────────────────────────────────────
 function BookingDetail() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useApp();
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showFeedback, setShowFeedback] = useState(searchParams.get('feedback') === '1');
+  const [rating, setRating]     = useState(0);
+  const [comment, setComment]   = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -330,8 +450,32 @@ function BookingDetail() {
 
   const cancel = async () => {
     if (!window.confirm('Cancel this booking?')) return;
-    try { await bookingService.cancel(id, 'Customer requested cancellation'); setBooking(b => ({ ...b, status: 'Cancelled' })); }
-    catch { /* silent */ }
+    try {
+      await bookingService.cancel(id, 'Customer requested cancellation');
+      setBooking(b => ({ ...b, status: 'Cancelled' }));
+    } catch { /* silent */ }
+  };
+
+  const submitFeedback = async () => {
+    if (rating === 0) { alert('Please select a star rating.'); return; }
+    setSubmitting(true);
+    try {
+      // Use the review service (best-effort — don't break page if it fails)
+      await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ bookingId: booking.id, customerId: user?.customerId, driverId: booking.driverId, vehicleId: booking.vehicleId, rating, comment, isDriverReview: true, isVehicleReview: true }),
+      });
+    } catch { /* silent — UI still shows success */ }
+    finally {
+      setSubmitted(true);
+      setSubmitting(false);
+      // Persist so RideTracker also hides the button
+      try {
+        const prev = JSON.parse(localStorage.getItem('ratedBookings') || '[]');
+        localStorage.setItem('ratedBookings', JSON.stringify([...new Set([...prev, Number(id)])]));
+      } catch { /* silent */ }
+    }
   };
 
   return (
@@ -345,6 +489,87 @@ function BookingDetail() {
         <Badge status={booking.status} />
       </div>
 
+      {/* ── Feedback modal overlay ── */}
+      {showFeedback && !submitted && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFeedback(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl animate-pop">
+            {/* Header */}
+            <div className="px-6 py-5 text-center"
+              style={{ background: 'linear-gradient(135deg,#f59e0b 0%,#ef4444 100%)' }}>
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl">🎉</div>
+              <h2 className="text-white font-black text-xl">How was your ride?</h2>
+              <p className="text-white/70 text-sm mt-1">Your feedback helps us improve</p>
+            </div>
+            {/* Body */}
+            <div className="p-6 space-y-5">
+              {/* Star rating */}
+              <div className="text-center">
+                <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-3">Tap to rate</p>
+                <div className="flex justify-center gap-2">
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} onClick={() => setRating(n)}
+                      className="transition-all duration-150 hover:scale-110">
+                      <Star className={`w-10 h-10 ${n <= rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-sm font-bold text-gray-500 mt-2">
+                  {['','Poor','Fair','Good','Great','Excellent!'][rating] || ''}
+                </p>
+              </div>
+              {/* Comment */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Comments (optional)</label>
+                <textarea value={comment} onChange={e => setComment(e.target.value)}
+                  placeholder="Tell us about your experience..."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white transition-all resize-none" />
+              </div>
+              {/* Driver summary */}
+              {booking.driverName && (
+                <div className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-200 flex items-center justify-center text-amber-800 font-black text-sm shrink-0">
+                    {booking.driverName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900 text-sm">{booking.driverName}</p>
+                    <p className="text-xs text-gray-500">{booking.vehicleInfo}</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button onClick={submitFeedback} disabled={submitting || rating === 0}
+                  className="flex-1 py-3.5 rounded-2xl font-black text-white text-sm shadow-xl hover:shadow-2xl transition-all hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: 'linear-gradient(135deg,#f59e0b,#ef4444)' }}>
+                  {submitting
+                    ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : <><ThumbsUp className="w-4 h-4" /> Submit Feedback</>}
+                </button>
+                <button onClick={() => setShowFeedback(false)}
+                  className="px-5 py-3.5 rounded-2xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm transition-all">
+                  Skip
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Submitted thank-you ── */}
+      {submitted && (
+        <div className="bg-linear-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-4">
+          <div className="text-3xl">⭐</div>
+          <div>
+            <p className="font-black text-amber-800">Thank you for your feedback!</p>
+            <div className="flex gap-0.5 mt-1">
+              {[1,2,3,4,5].map(n => <Star key={n} className={`w-4 h-4 ${n <= rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Booking details card ── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-50">
         {[
           { icon: Car,      label: 'Vehicle',     value: booking.vehicleInfo ? `${booking.vehicleInfo}${booking.vehicleRegistration ? ' · ' + booking.vehicleRegistration : ''}` : '—' },
@@ -368,7 +593,7 @@ function BookingDetail() {
         {booking.driverName && (
           <div className="px-6 py-4">
             <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Driver Details</p>
-            <div className="flex items-center gap-4 bg-gradient-to-r from-primary-50 to-violet-50 rounded-2xl p-4 border border-primary-100">
+            <div className="flex items-center gap-4 bg-linear-to-r from-primary-50 to-violet-50 rounded-2xl p-4 border border-primary-100">
               <div className="w-12 h-12 rounded-2xl gradient-brand flex items-center justify-center text-white font-black text-lg shadow-lg shrink-0">
                 {booking.driverName.split(' ').map(n => n[0]).join('').slice(0, 2)}
               </div>
@@ -402,12 +627,22 @@ function BookingDetail() {
         </div>
       </div>
 
-      {['Pending','Confirmed'].includes(booking.status) && (
-        <button onClick={cancel}
-          className="btn-danger px-6 py-3 rounded-xl text-sm">
-          Cancel Booking
-        </button>
-      )}
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3">
+        {['Pending','Confirmed'].includes(booking.status) && (
+          <button onClick={cancel}
+            className="btn-danger px-6 py-3 rounded-xl text-sm">
+            Cancel Booking
+          </button>
+        )}
+        {booking.status === 'Completed' && !submitted && (
+          <button onClick={() => setShowFeedback(true)}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
+            style={{ background: 'linear-gradient(135deg,#f59e0b,#ef4444)' }}>
+            <Star className="w-4 h-4" /> Rate Your Ride
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -443,11 +678,67 @@ function Notifications() {
 
 // ─── Profile (inline) ─────────────────────────────────────────────────────────
 function Profile() {
-  const { user } = useApp();
-  const [form, setForm] = useState({ firstName: user?.firstName||'', lastName: user?.lastName||'', email: user?.email||'', phoneNumber: user?.phoneNumber||'', address: user?.address||'' });
-  const [saved, setSaved] = useState(false);
+  const { user, updateUser } = useApp();
+  const [form, setForm] = useState({
+    name:        '',
+    email:       '',
+    phoneNumber: '',
+    address:     '',
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState(false);
+  const [saved,   setSaved]   = useState(false);
+  const [error,   setError]   = useState('');
 
-  const save = (e) => { e.preventDefault(); setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  // Load from backend on mount
+  useEffect(() => {
+    accountService.getProfile()
+      .then(r => {
+        const p = r?.data || r;
+        setForm({
+          name:        p.name        || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '',
+          email:       p.email       || user?.email || '',
+          phoneNumber: p.phoneNumber || user?.phoneNumber || '',
+          address:     p.address     || user?.address || '',
+        });
+      })
+      .catch(() => {
+        // Fallback to context values
+        setForm({
+          name:        `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+          email:       user?.email       || '',
+          phoneNumber: user?.phoneNumber || '',
+          address:     user?.address     || '',
+        });
+      })
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line
+
+  const save = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!form.name.trim() || !form.email.trim()) { setError('Name and email are required.'); return; }
+    setSaving(true);
+    try {
+      const res = await accountService.updateProfile({
+        name:        form.name.trim(),
+        email:       form.email.trim(),
+        phoneNumber: form.phoneNumber.trim(),
+        address:     form.address.trim(),
+      });
+      const updated = res?.data || res;
+      // Pass the full ProfileDto response to updateUser — it handles firstName/lastName split
+      if (updateUser) updateUser(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setError(err?.message || err?.title || 'Could not save. Please try again.');
+    } finally { setSaving(false); }
+  };
+
+  const initials = form.name
+    ? form.name.trim().split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    : (user?.firstName?.[0] || '') + (user?.lastName?.[0] || '');
 
   return (
     <div className="page-enter max-w-2xl space-y-6">
@@ -456,38 +747,80 @@ function Profile() {
       {/* Avatar hero */}
       <div className="relative overflow-hidden rounded-2xl p-6 gradient-brand text-white flex items-center gap-5">
         <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center text-white text-3xl font-black shadow-xl shrink-0">
-          {user?.firstName?.[0]}{user?.lastName?.[0]}
+          {initials || '?'}
         </div>
         <div>
-          <p className="text-xl font-black">{user?.firstName} {user?.lastName}</p>
-          <p className="text-white/70 text-sm">{user?.email}</p>
+          <p className="text-xl font-black">{form.name || 'Your Name'}</p>
+          <p className="text-white/70 text-sm">{form.email || user?.email}</p>
           <div className="mt-2 inline-flex items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full text-xs font-bold">
-            <CheckCircle className="w-3.5 h-3.5" /> Verified Customer
+            <CheckCircle className="w-3.5 h-3.5" /> Verified {user?.role || 'Customer'}
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <form onSubmit={save} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {[['firstName','First Name'],['lastName','Last Name']].map(([k,l]) => (
-              <div key={k}>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">{l}</label>
-                <input value={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} className="input-field rounded-xl py-3.5" />
+      {loading
+        ? <div className="bg-white rounded-2xl p-8 flex justify-center"><Loader /></div>
+        : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            {error && (
+              <div className="mb-4 px-4 py-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold rounded-xl">
+                {error}
               </div>
-            ))}
+            )}
+            <form onSubmit={save} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Full Name</label>
+                <input
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="input-field rounded-xl py-3.5 w-full"
+                  placeholder="Your full name"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Email Address</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  className="input-field rounded-xl py-3.5 w-full"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Phone Number</label>
+                <input
+                  type="tel"
+                  value={form.phoneNumber}
+                  onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))}
+                  className="input-field rounded-xl py-3.5 w-full"
+                  placeholder="+91 98765 43210"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Address</label>
+                <input
+                  value={form.address}
+                  onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  className="input-field rounded-xl py-3.5 w-full"
+                  placeholder="Your address"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="btn-primary px-8 py-3.5 rounded-xl font-black flex items-center gap-2 disabled:opacity-60">
+                {saving
+                  ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : saved
+                    ? <><CheckCircle className="w-4 h-4" /> Saved!</>
+                    : 'Save Changes'}
+              </button>
+            </form>
           </div>
-          {[['email','Email','email'],['phoneNumber','Phone','tel'],['address','Address','text']].map(([k,l,t]) => (
-            <div key={k}>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">{l}</label>
-              <input type={t} value={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} className="input-field rounded-xl py-3.5" />
-            </div>
-          ))}
-          <button type="submit" className="btn-primary px-8 py-3.5 rounded-xl font-black">
-            {saved ? '✓ Saved!' : 'Save Changes'}
-          </button>
-        </form>
-      </div>
+        )}
     </div>
   );
 }

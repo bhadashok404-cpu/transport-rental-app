@@ -101,18 +101,23 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateUser = (profile) => {
+    // Split name into firstName/lastName so all components that read those fields stay in sync
+    const nameParts = (profile.name || '').trim().split(' ');
     const nextUser = {
       ...user,
-      id: profile.id,
-      customerId: profile.customerId,
-      driverId: profile.driverId,
-      email: profile.email,
-      name: profile.name,
-      role: profile.role,
+      id:          profile.id,
+      customerId:  profile.customerId,
+      driverId:    profile.driverId,
+      email:       profile.email,
+      name:        profile.name,
+      firstName:   nameParts[0] || '',
+      lastName:    nameParts.slice(1).join(' ') || '',
+      role:        profile.role,
       phoneNumber: profile.phoneNumber,
-      address: profile.address,
+      address:     profile.address,
     };
     setUser(nextUser);
+    localStorage.setItem('user', JSON.stringify(nextUser));
     return nextUser;
   };
 
